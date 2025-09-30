@@ -20,6 +20,22 @@ class SettingsScreen extends StatelessWidget {
             onChanged: (bool value) => app.toggleThemeMode(value),
             secondary: const Icon(Icons.dark_mode_outlined),
           ),
+          const Divider(height: 0),
+          SwitchListTile(
+            title: const Text('Notifikace'),
+            subtitle: const Text('Dostávat upozornění na zápasy a události'),
+            value: app.notificationsEnabled,
+            onChanged: (bool v) => app.setNotificationsEnabled(v),
+            secondary: const Icon(Icons.notifications_outlined),
+          ),
+          const Divider(height: 0),
+          ListTile(
+            leading: const Icon(Icons.feedback_outlined),
+            title: const Text('Feedback'),
+            subtitle: const Text('Pošli nám nápad nebo nahlas problém'),
+            onTap: () => Navigator.of(context).pushNamed('/feedback'),
+            trailing: const Icon(Icons.chevron_right),
+          ),
         ],
       ),
     );

@@ -3,12 +3,19 @@ import 'package:flutter/material.dart';
 class AppState extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.light;
   final Set<String> _favoriteTeams = <String>{};
+  bool _notificationsEnabled = false;
 
   ThemeMode get themeMode => _themeMode;
   Set<String> get favoriteTeams => _favoriteTeams;
+  bool get notificationsEnabled => _notificationsEnabled;
 
   void toggleThemeMode(bool dark) {
     _themeMode = dark ? ThemeMode.dark : ThemeMode.light;
+    notifyListeners();
+  }
+
+  void setNotificationsEnabled(bool enabled) {
+    _notificationsEnabled = enabled;
     notifyListeners();
   }
 

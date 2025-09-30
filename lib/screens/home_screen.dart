@@ -15,13 +15,34 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _today = DateTime.now();
-    _days = List<DateTime>.generate(5, (int i) => _today.add(Duration(days: i - 2)));
+    _days = List<DateTime>.generate(15, (int i) => _today.add(Duration(days: i - 7)));
   }
 
   String _formatShort(DateTime d) {
     final int day = d.day;
     final int month = d.month;
     return '${day.toString().padLeft(2, '0')}.${month.toString().padLeft(2, '0')}';
+  }
+
+  String _weekdayCzShort(DateTime d) {
+    switch (d.weekday) {
+      case DateTime.monday:
+        return 'Po';
+      case DateTime.tuesday:
+        return 'Út';
+      case DateTime.wednesday:
+        return 'St';
+      case DateTime.thursday:
+        return 'Čt';
+      case DateTime.friday:
+        return 'Pá';
+      case DateTime.saturday:
+        return 'So';
+      case DateTime.sunday:
+        return 'Ne';
+      default:
+        return '';
+    }
   }
 
   List<Widget> _buildMatchList(DateTime date) {
@@ -43,6 +64,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 kickoffTime: m['time']!,
                 homeTeam: m['home']!,
                 awayTeam: m['away']!,
+                onTap: () {
+                  Navigator.of(context).pushNamed(
+                    '/match',
+                    arguments: <String, String>{
+                      'home': m['home']!,
+                      'away': m['away']!,
+                      'time': m['time']!,
+                    },
+                  );
+                },
               ))
           .expand<Widget>((row) => <Widget>[row, const Divider(height: 0)])
           .toList(),
@@ -63,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
               indicatorColor: Theme.of(context).colorScheme.primary,
               tabs: _days.map<Widget>((DateTime d) {
                 final bool isToday = d.year == _today.year && d.month == _today.month && d.day == _today.day;
-                final String label = isToday ? 'Dnes' : _formatShort(d);
+                final String label = isToday ? 'Dnes ${_formatShort(d)}' : '${_weekdayCzShort(d)} ${_formatShort(d)}';
                 return Tab(text: label);
               }).toList(),
               isScrollable: true,
@@ -90,67 +121,73 @@ class _MatchRow extends StatelessWidget {
     required this.kickoffTime,
     required this.homeTeam,
     required this.awayTeam,
+    this.onTap,
   });
 
   final String kickoffTime;
   final String homeTeam;
   final String awayTeam;
 
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 54,
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-            decoration: BoxDecoration(
-              color: const Color(0x1A1DB954),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              kickoffTime,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
                   homeTeam,
                   style: Theme.of(context).textTheme.bodyMedium,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  awayTeam,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: 50,
-            alignment: Alignment.centerRight,
-            child: Text(
-              '—', // score placeholder
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+            SizedBox(
+              width: 110,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text('— : —', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1A1DB954),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      kickoffTime,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600),
+                    ),
                   ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.chevron_right),
-        ],
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      awayTeam,
+                      textAlign: TextAlign.right,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

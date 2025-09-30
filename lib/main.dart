@@ -8,6 +8,9 @@ import 'screens/search_screen.dart';
 import 'screens/competition_detail_screen.dart';
 import 'app_state.dart';
 import 'screens/settings_screen.dart';
+import 'screens/match_detail_screen.dart';
+import 'screens/news_screen.dart';
+import 'screens/feedback_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -27,11 +30,11 @@ class MyApp extends StatelessWidget {
       title: 'Fotbal Live',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1DB954), // green accent similar to Livesport vibe
+          seedColor: const Color(0xFF0A84FF), // dark blue accent
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF6F7F9),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FB),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
@@ -56,13 +59,13 @@ class MyApp extends StatelessWidget {
         navigationBarTheme: const NavigationBarThemeData(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
-          indicatorColor: Color(0x1A1DB954),
+          indicatorColor: Color(0x1A0A84FF),
           elevation: 0,
         ),
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1DB954),
+          seedColor: const Color(0xFF0A84FF),
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
@@ -78,8 +81,21 @@ class MyApp extends StatelessWidget {
           return MaterialPageRoute<void>(
               builder: (_) => CompetitionDetailScreen(title: title));
         }
+        if (settings.name == '/match') {
+          final Map<String, String> args = (settings.arguments as Map<String, String>?) ?? <String, String>{};
+          return MaterialPageRoute<void>(
+            builder: (_) => MatchDetailScreen(
+              home: args['home'] ?? 'Domácí',
+              away: args['away'] ?? 'Hosté',
+              kickoff: args['time'] ?? '--:--',
+            ),
+          );
+        }
         if (settings.name == '/settings') {
           return MaterialPageRoute<void>(builder: (_) => const SettingsScreen());
+        }
+        if (settings.name == '/feedback') {
+          return MaterialPageRoute<void>(builder: (_) => const FeedbackScreen());
         }
         return null;
       },
@@ -97,9 +113,10 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  int _currentIndex = 0;
+  int _currentIndex = 2; // center is Home
 
-  static const List<String> _titles = <String>['Domů', 'Oblíbené', 'Soutěže', 'Týmy'];
+  static const int _homeIndex = 2;
+  static const List<String> _titles = <String>['Oblíbené', 'Soutěže', 'Domů', 'Týmy', 'Novinky'];
 
   late final List<Widget> _pages;
 
@@ -107,10 +124,11 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     _pages = const <Widget>[
-      HomeScreen(),
       FavoritesScreen(),
       CompetitionsScreen(),
+      HomeScreen(),
       TeamsScreen(),
+      NewsScreen(),
     ];
   }
 
@@ -124,14 +142,19 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_currentIndex]),
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pushNamed('/settings'),
+          icon: const Icon(Icons.settings_outlined),
+          tooltip: 'Nastavení',
+        ),
+        title: _currentIndex == _homeIndex ? const SizedBox.shrink() : Text(_titles[_currentIndex]),
         actions: <Widget>[
           IconButton(
-            onPressed: () => Navigator.of(context).pushNamed('/settings'),
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Nastavení',
+            onPressed: () => Navigator.of(context).pushNamed('/search'),
+            icon: const Icon(Icons.search),
+            tooltip: 'Hledat',
           ),
-          TextButton.icon(
+          IconButton(
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -140,12 +163,7 @@ class _AppShellState extends State<AppShell> {
               );
             },
             icon: const Icon(Icons.person_outline),
-            label: const Text('Přihlásit'),
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pushNamed('/search'),
-            icon: const Icon(Icons.search),
-            tooltip: 'Hledat',
+            tooltip: 'Přihlásit',
           ),
         ],
       ),
@@ -154,10 +172,11 @@ class _AppShellState extends State<AppShell> {
         selectedIndex: _currentIndex,
         onDestinationSelected: _onTap,
         destinations: const <NavigationDestination>[
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Domů'),
           NavigationDestination(icon: Icon(Icons.favorite_outline), selectedIcon: Icon(Icons.favorite), label: 'Oblíbené'),
           NavigationDestination(icon: Icon(Icons.emoji_events_outlined), selectedIcon: Icon(Icons.emoji_events), label: 'Soutěže'),
+          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Domů'),
           NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups), label: 'Týmy'),
+          NavigationDestination(icon: Icon(Icons.article_outlined), selectedIcon: Icon(Icons.article), label: 'Novinky'),
         ],
       ),
     );
