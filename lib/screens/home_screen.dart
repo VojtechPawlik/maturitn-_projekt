@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/fixtures_service.dart';
+import '../services/notifications_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,40 +47,44 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  List<Widget> _buildMatchList(DateTime date) {
-    // Czech Fortuna Liga sample fixtures only
-    final List<Map<String, String>> matches = <Map<String, String>>[
-      {'home': 'Sparta Praha', 'away': 'Slavia Praha', 'time': '18:00'},
-      {'home': 'Viktoria Plzeň', 'away': 'Baník Ostrava', 'time': '16:30'},
-      {'home': 'Sigma Olomouc', 'away': 'Slovan Liberec', 'time': '15:00'},
-      {'home': 'Jablonec', 'away': 'FK Teplice', 'time': '17:30'},
-      {'home': 'Hradec Králové', 'away': 'Mladá Boleslav', 'time': '14:00'},
-      {'home': 'Zlín', 'away': 'Karviná', 'time': '13:00'},
-    ];
+  Widget _buildDayContent(DateTime date) {
+    return FutureBuilder<List<Fixture>>(
+      future: FixturesService.instance.loadCzechFixtures(date),
+      builder: (BuildContext context, AsyncSnapshot<List<Fixture>> snap) {
+        final List<Widget> children = <Widget>[const _LeagueHeader(title: 'FORTUNA:LIGA'), const Divider(height: 0)];
+        if (snap.connectionState != ConnectionState.done) {
+          children.add(const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())));
+        } else if (snap.hasError) {
+          children.add(Padding(padding: const EdgeInsets.all(16), child: Text('Chyba načítání zápasů')));
+        } else {
+          final List<Fixture> fixtures = snap.data ?? <Fixture>[];
+          children.addAll(
+            fixtures
+                .map((Fixture f) => _MatchRow(
+                      kickoffTime: _formatTime(f.kickoff),
+                      homeTeam: f.home,
+                      awayTeam: f.away,
+                      onTap: () {
+                        Navigator.of(context).pushNamed('/match', arguments: <String, String>{'home': f.home, 'away': f.away, 'time': _formatTime(f.kickoff)});
+                      },
+                      onNotify: () => NotificationsService.instance.scheduleMatchNotification(
+                        id: f.kickoff.millisecondsSinceEpoch ~/ 1000,
+                        title: '${f.home} vs ${f.away}',
+                        body: 'Začátek zápasu v ${_formatTime(f.kickoff)}',
+                        when: f.kickoff,
+                      ),
+                    ))
+                .expand<Widget>((Widget row) => <Widget>[row, const Divider(height: 0)])
+                .toList(),
+          );
+        }
 
-    return <Widget>[
-      const _LeagueHeader(title: 'FORTUNA:LIGA'),
-      const Divider(height: 0),
-      ...matches
-          .map((m) => _MatchRow(
-                kickoffTime: m['time']!,
-                homeTeam: m['home']!,
-                awayTeam: m['away']!,
-                onTap: () {
-                  Navigator.of(context).pushNamed(
-                    '/match',
-                    arguments: <String, String>{
-                      'home': m['home']!,
-                      'away': m['away']!,
-                      'time': m['time']!,
-                    },
-                  );
-                },
-              ))
-          .expand<Widget>((row) => <Widget>[row, const Divider(height: 0)])
-          .toList(),
-    ];
+        return ListView(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), children: children);
+      },
+    );
   }
+
+  String _formatTime(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0') }';
 
   @override
   Widget build(BuildContext context) {
@@ -101,14 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Expanded(
-            child: TabBarView(
-              children: _days.map<Widget>((DateTime d) {
-                return ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  children: _buildMatchList(d),
-                );
-              }).toList(),
-            ),
+            child: TabBarView(children: _days.map<Widget>((DateTime d) => _buildDayContent(d)).toList()),
           ),
         ],
       ),
@@ -122,6 +121,7 @@ class _MatchRow extends StatelessWidget {
     required this.homeTeam,
     required this.awayTeam,
     this.onTap,
+    this.onNotify,
   });
 
   final String kickoffTime;
@@ -129,6 +129,7 @@ class _MatchRow extends StatelessWidget {
   final String awayTeam;
 
   final VoidCallback? onTap;
+  final VoidCallback? onNotify;
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +168,10 @@ class _MatchRow extends StatelessWidget {
                       style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600),
                     ),
                   ),
+                  if (onNotify != null) ...<Widget>[
+                    const SizedBox(height: 6),
+                    TextButton.icon(onPressed: onNotify, icon: const Icon(Icons.notifications_active_outlined, size: 18), label: const Text('Upozornit')),
+                  ],
                 ],
               ),
             ),

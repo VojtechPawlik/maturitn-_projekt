@@ -12,9 +12,8 @@ import 'screens/match_detail_screen.dart';
 import 'screens/news_screen.dart';
 import 'screens/feedback_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
-// If configured by flutterfire, this file will exist; we guard imports at runtime
-// ignore: uri_does_not_exist
-import 'firebase_options.dart' if (dart.library.js) 'firebase_options.dart';
+import 'firebase_options.dart';
+import 'services/notifications_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +31,7 @@ class MyApp extends StatelessWidget {
       child: Builder(builder: (BuildContext context) {
         final AppState app = AppProvider.of(context);
         return FutureBuilder<void>(
-          future: _initFirebase(),
+          future: Future.wait<void>(<Future<void>>[_initFirebase(), NotificationsService.instance.initialize()]),
           builder: (BuildContext context, AsyncSnapshot<void> snap) {
             return MaterialApp(
       title: 'Fotbal Live',
