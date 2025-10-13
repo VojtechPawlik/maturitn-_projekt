@@ -12,8 +12,10 @@ import 'screens/match_detail_screen.dart';
 import 'screens/news_screen.dart';
 import 'screens/feedback_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'services/notifications_service.dart';
+import 'services/auth_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -164,45 +166,145 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pushNamed('/settings'),
-          icon: const Icon(Icons.settings_outlined),
-          tooltip: 'Nastavení',
-        ),
-        title: _currentIndex == _homeIndex ? const SizedBox.shrink() : Text(_titles[_currentIndex]),
-        actions: <Widget>[
-          IconButton(
-            onPressed: () => Navigator.of(context).pushNamed('/search'),
-            icon: const Icon(Icons.search),
-            tooltip: 'Hledat',
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        final User? user = snapshot.data;
+        
+        return Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              onPressed: () => Navigator.of(context).pushNamed('/settings'),
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Nastavení',
+            ),
+            title: _currentIndex == _homeIndex ? const SizedBox.shrink() : Text(_titles[_currentIndex]),
+            actions: <Widget>[
+              IconButton(
+                onPressed: () => Navigator.of(context).pushNamed('/search'),
+                icon: const Icon(Icons.search),
+                tooltip: 'Hledat',
+              ),
+              _buildAuthButton(user),
+            ],
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const LoginScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Přihlásit',
+          body: IndexedStack(index: _currentIndex, children: _pages),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: _onTap,
+            destinations: const <NavigationDestination>[
+              NavigationDestination(icon: Icon(Icons.favorite_outline), selectedIcon: Icon(Icons.favorite), label: 'Oblíbené'),
+              NavigationDestination(icon: Icon(Icons.emoji_events_outlined), selectedIcon: Icon(Icons.emoji_events), label: 'Soutěže'),
+              NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Domů'),
+              NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups), label: 'Týmy'),
+              NavigationDestination(icon: Icon(Icons.article_outlined), selectedIcon: Icon(Icons.article), label: 'Novinky'),
+            ],
           ),
-        ],
-      ),
-      body: IndexedStack(index: _currentIndex, children: _pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: _onTap,
-        destinations: const <NavigationDestination>[
-          NavigationDestination(icon: Icon(Icons.favorite_outline), selectedIcon: Icon(Icons.favorite), label: 'Oblíbené'),
-          NavigationDestination(icon: Icon(Icons.emoji_events_outlined), selectedIcon: Icon(Icons.emoji_events), label: 'Soutěže'),
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Domů'),
-          NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups), label: 'Týmy'),
-          NavigationDestination(icon: Icon(Icons.article_outlined), selectedIcon: Icon(Icons.article), label: 'Novinky'),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  Widget _buildAuthButton(User? user) {
+    if (user != null) {
+      // Uživatel je přihlášen - zobrazit menu s informacemi o uživateli
+      return PopupMenuButton<String>(
+        onSelected: (value) async {
+          if (value == 'logout') {
+            try {
+              await AuthService().signOut();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Úspěšně odhlášen')),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Chyba při odhlášení: $e')),
+                );
+              }
+            }
+          }
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem<String>(
+            enabled: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  user.displayName ?? 'Uživatel',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  user.email ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          const PopupMenuItem<String>(
+            value: 'logout',
+            child: Row(
+              children: [
+                Icon(Icons.logout),
+                SizedBox(width: 8),
+                Text('Odhlásit se'),
+              ],
+            ),
+          ),
+        ],
+        child: CircleAvatar(
+          radius: 16,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          child: user.photoURL != null
+              ? ClipOval(
+                  child: Image.network(
+                    user.photoURL!,
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Text(
+                        (user.displayName?.isNotEmpty == true 
+                            ? user.displayName![0].toUpperCase() 
+                            : user.email?.isNotEmpty == true 
+                                ? user.email![0].toUpperCase() 
+                                : 'U'),
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                      );
+                    },
+                  ),
+                )
+              : Text(
+                  (user.displayName?.isNotEmpty == true 
+                      ? user.displayName![0].toUpperCase() 
+                      : user.email?.isNotEmpty == true 
+                          ? user.email![0].toUpperCase() 
+                          : 'U'),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+        ),
+      );
+    } else {
+      // Uživatel není přihlášen - zobrazit tlačítko pro přihlášení
+      return IconButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const LoginScreen(),
+            ),
+          );
+        },
+        icon: const Icon(Icons.person_outline),
+        tooltip: 'Přihlásit',
+      );
+    }
   }
 }
