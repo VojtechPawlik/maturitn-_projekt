@@ -40,6 +40,9 @@ class AuthService {
         await userCredential.user?.updateDisplayName(displayName);
       }
 
+      // Odeslat verifikační email
+      await userCredential.user?.sendEmailVerification();
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
@@ -59,6 +62,13 @@ class AuthService {
         email: email,
         password: password,
       );
+
+      // Zkontrolovat, zda je email ověřen
+      if (userCredential.user?.emailVerified != true) {
+        // Odhlásit uživatele, pokud email není ověřen
+        await _auth.signOut();
+        throw 'Váš email ještě není ověřen. Zkontrolujte svou emailovou schránku a klikněte na odkaz pro ověření.';
+      }
 
       // Uložit stav "Zůstat přihlášen"
       await _setRememberMe(rememberMe);
@@ -166,6 +176,36 @@ class AuthService {
     }
   }
 
+  /// Znovu odeslat verifikační email
+  Future<void> resendEmailVerification() async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+      } else if (user?.emailVerified == true) {
+        throw 'Email je již ověřen.';
+      } else {
+        throw 'Nejste přihlášeni.';
+      }
+    } on FirebaseAuthException catch (e) {
+      throw _handleFirebaseAuthError(e);
+    } catch (e) {
+      throw 'Chyba při odesílání verifikačního emailu: $e';
+    }
+  }
+
+  /// Zkontrolovat aktuální stav ověření emailu
+  Future<void> checkEmailVerification() async {
+    try {
+      await _auth.currentUser?.reload();
+    } catch (e) {
+      throw 'Chyba při kontrole stavu ověření: $e';
+    }
+  }
+
+  /// Zda je email aktuálního uživatele ověřen
+  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
+
   /// Odhlášení
   Future<void> signOut() async {
     try {
@@ -212,7 +252,7 @@ class AuthService {
       case 'email-already-in-use':
         return 'Tento email je již používán jiným účtem.';
       case 'weak-password':
-        return 'Heslo je příliš slabé.';
+        return 'Heslo je příliš slabé. Použijte alespoň 6 znaků.';
       case 'invalid-email':
         return 'Neplatný formát emailu.';
       case 'user-disabled':
@@ -220,13 +260,21 @@ class AuthService {
       case 'too-many-requests':
         return 'Příliš mnoho pokusů. Zkuste to později.';
       case 'operation-not-allowed':
-        return 'Tato operace není povolena.';
+        return 'Tato operace není povolena. Zkontrolujte nastavení Firebase.';
       case 'invalid-credential':
         return 'Neplatné přihlašovací údaje.';
       case 'account-exists-with-different-credential':
         return 'Účet s tímto emailem již existuje s jiným způsobem přihlášení.';
       case 'requires-recent-login':
         return 'Tato operace vyžaduje nedávné přihlášení. Přihlaste se znovu.';
+      case 'network-request-failed':
+        return 'Chyba připojení k internetu. Zkontrolujte své připojení.';
+      case 'user-token-expired':
+        return 'Platnost přihlášení vypršela. Přihlaste se znovu.';
+      case 'invalid-verification-code':
+        return 'Neplatný ověřovací kód.';
+      case 'invalid-verification-id':
+        return 'Neplatné ID ověření.';
       default:
         return 'Chyba při autentizaci: ${e.message ?? 'Neznámá chyba'}';
     }

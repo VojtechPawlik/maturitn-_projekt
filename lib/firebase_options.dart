@@ -9,10 +9,10 @@ class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (Platform.isIOS || Platform.isMacOS) {
       return const FirebaseOptions(
-        apiKey: 'stub-ios-api-key',
-        appId: '1:000000000000:ios:stub',
-        messagingSenderId: '000000000000',
-        projectId: 'stub-project',
+        apiKey: 'AIzaSyCP-Ej9eusSHduSNphtXgd9OoVavKuWctI',
+        appId: '1:783732863935:ios:4253b73d74edaf1bff270a',
+        messagingSenderId: '783732863935',
+        projectId: 'fir-setup-50828',
       );
     }
     if (Platform.isAndroid) {

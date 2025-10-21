@@ -17,7 +17,11 @@ import 'firebase_options.dart';
 import 'services/notifications_service.dart';
 import 'services/auth_service.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,
+  name: 'firebaseApp'
+  );
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }

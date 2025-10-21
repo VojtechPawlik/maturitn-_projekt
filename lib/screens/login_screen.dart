@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
+import 'email_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -58,7 +59,14 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _showErrorMessage(e.toString());
+        final String errorMessage = e.toString();
+        
+        // Pokud se jedná o neověřený email, nabídnout možnost přejít na verification screen
+        if (errorMessage.contains('není ověřen')) {
+          _showEmailVerificationDialog();
+        } else {
+          _showErrorMessage(errorMessage);
+        }
       }
     } finally {
       if (mounted) {
@@ -143,6 +151,37 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _showEmailVerificationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Email není ověřen'),
+        content: const Text(
+          'Váš email ještě není ověřen. Zkontrolujte svou emailovou schránku a klikněte na ověřovací odkaz, nebo přejděte na obrazovku ověření.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Zrušit'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EmailVerificationScreen(
+                    email: _emailController.text.trim(),
+                  ),
+                ),
+              );
+            },
+            child: const Text('Přejít k ověření'),
+          ),
+        ],
       ),
     );
   }
