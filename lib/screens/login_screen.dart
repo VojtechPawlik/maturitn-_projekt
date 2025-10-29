@@ -215,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Fotbal Live',
+                'Strike!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 28,

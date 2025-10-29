@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
           future: Future.wait<void>(<Future<void>>[_initFirebase(), NotificationsService.instance.initialize()]),
           builder: (BuildContext context, AsyncSnapshot<void> snap) {
             return MaterialApp(
-      title: 'Fotbal Live',
+      title: 'Strike!',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF0A84FF), // dark blue accent
