@@ -13,6 +13,8 @@ class DefaultFirebaseOptions {
         appId: '1:783732863935:ios:4253b73d74edaf1bff270a',
         messagingSenderId: '783732863935',
         projectId: 'fir-setup-50828',
+        storageBucket: 'fir-setup-50828.firebasestorage.app',
+        iosBundleId: 'com.fluttermapp.maturitaApp',
       );
     }
     if (Platform.isAndroid) {

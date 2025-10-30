@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true); // Předáme true pro indikaci úspěšného přihlášení
         _showSuccessMessage('Úspěšně přihlášen!');
       }
     } catch (e) {
@@ -82,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await _authService.signInWithGoogle(rememberMe: _rememberMe);
       
       if (result != null && mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
         _showSuccessMessage('Úspěšně přihlášen přes Google!');
       }
     } catch (e) {
@@ -103,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await _authService.signInWithApple(rememberMe: _rememberMe);
       
       if (result != null && mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
         _showSuccessMessage('Úspěšně přihlášen přes Apple!');
       }
     } catch (e) {
