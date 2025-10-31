@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'login_screen.dart';
-import 'main_screen_fixed.dart';
+import 'main_screen.dart';
+import '../services/session_manager.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -64,6 +65,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // Spustit fade animaci pro obsah
     _fadeController.forward();
     
+    // Načíst uloženou session
+    await SessionManager().loadSavedSession();
+    
     // Simulovat načítání
     await Future.delayed(const Duration(milliseconds: 1500));
     
@@ -80,9 +84,18 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 
   void _startApp() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainScreen()),
-    );
+    // Zkontrolovat zda je uživatel už přihlášen
+    if (SessionManager().isLoggedIn) {
+      // Jít přímo na main screen s přihlášeným stavem
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
+    } else {
+      // Jít na main screen jako nepřihlášený
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
+    }
   }
 
   @override

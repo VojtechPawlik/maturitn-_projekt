@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
+import '../services/session_manager.dart';
 import 'register_screen.dart';
 import 'email_verification_screen.dart';
 
@@ -53,6 +54,13 @@ class _LoginScreenState extends State<LoginScreen> {
         rememberMe: _rememberMe,
       );
       
+      // Nastavit session po úspěšném přihlášení
+      await SessionManager().loginUser(
+        email: _emailController.text.trim(),
+        nickname: 'Uživatel', // Default nickname
+        rememberMe: _rememberMe,
+      );
+      
       if (mounted) {
         Navigator.of(context).pop(true); // Předáme true pro indikaci úspěšného přihlášení
         _showSuccessMessage('Úspěšně přihlášen!');
@@ -82,6 +90,13 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await _authService.signInWithGoogle(rememberMe: _rememberMe);
       
       if (result != null && mounted) {
+        // Nastavit session po úspěšném přihlášení
+        await SessionManager().loginUser(
+          email: 'google.user@gmail.com', // TODO: Získat skutečný email z Google
+          nickname: 'Google uživatel',
+          rememberMe: _rememberMe,
+        );
+        
         Navigator.of(context).pop(true);
         _showSuccessMessage('Úspěšně přihlášen přes Google!');
       }
@@ -103,6 +118,13 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await _authService.signInWithApple(rememberMe: _rememberMe);
       
       if (result != null && mounted) {
+        // Nastavit session po úspěšném přihlášení
+        await SessionManager().loginUser(
+          email: 'apple.user@icloud.com', // TODO: Získat skutečný email z Apple
+          nickname: 'Apple uživatel',
+          rememberMe: _rememberMe,
+        );
+        
         Navigator.of(context).pop(true);
         _showSuccessMessage('Úspěšně přihlášen přes Apple!');
       }

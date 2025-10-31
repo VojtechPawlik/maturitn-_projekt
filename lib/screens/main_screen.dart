@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import '../services/session_manager.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -10,7 +11,6 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final AuthService _authService = AuthService();
   int _currentIndex = 2; // Hlavní stránka je uprostřed (index 2)
   DateTime _selectedDate = DateTime.now();
   final ScrollController _calendarController = ScrollController();
@@ -35,11 +35,24 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _selectedCompetition = _competitions.first;
-    _checkAuthStatus();
+    _initializeApp();
     // Vycentrovat kalendář na dnešní datum
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerCalendarOnToday();
     });
+  }
+
+  Future<void> _initializeApp() async {
+    // Načíst uloženou session při startu aplikace
+    await SessionManager().loadSavedSession();
+    _checkAuthStatus();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Znovu zkontrolovat auth stav při návratu na tuto obrazovku
+    _checkAuthStatus();
   }
 
   void _centerCalendarOnToday() {
@@ -63,11 +76,10 @@ class _MainScreenState extends State<MainScreen> {
     super.dispose();
   }
 
-  Future<void> _checkAuthStatus() async {
-    // Zkontrolujeme, jestli je uživatel přihlášen pomocí remember me preference
-    final rememberMe = await _authService.shouldRememberUser();
+  void _checkAuthStatus() {
+    // Použít SessionManager pro kontrolu přihlášení
     setState(() {
-      _isLoggedIn = rememberMe;
+      _isLoggedIn = SessionManager().isLoggedIn;
     });
   }
 
@@ -84,17 +96,15 @@ class _MainScreenState extends State<MainScreen> {
     ).then((_) => _checkAuthStatus());
   }
 
-  Future<void> _logout() async {
-    await _authService.signOut();
-    setState(() {
-      _isLoggedIn = false;
+  void _navigateToProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    ).then((result) {
+      // Pokud se uživatel odhlásil v profilu, aktualizuj stav
+      if (result == true) {
+        _checkAuthStatus();
+      }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Úspěšně odhlášen'),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
   void _toggleFavoriteTeam(String teamName) {
@@ -129,10 +139,58 @@ class _MainScreenState extends State<MainScreen> {
         foregroundColor: Colors.white,
         actions: [
           if (_isLoggedIn)
-            IconButton(
-              icon: const Icon(Icons.account_circle),
-              onPressed: _logout,
-              tooltip: 'Profil / Odhlásit se',
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: _navigateToProfile,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: ClipOval(
+                        child: SessionManager().profileImagePath != null
+                            ? Container(
+                                color: Colors.white,
+                                child: const Icon(
+                                  Icons.photo,
+                                  color: Color(0xFF0A84FF),
+                                  size: 18,
+                                ),
+                              )
+                            : Container(
+                                color: Colors.white,
+                                child: const Icon(
+                                  Icons.person,
+                                  color: Color(0xFF0A84FF),
+                                  size: 18,
+                                ),
+                              ),
+                      ),
+                    ),
+                    if (SessionManager().userNickname != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          SessionManager().userNickname!.length > 8
+                              ? '${SessionManager().userNickname!.substring(0, 8)}...'
+                              : SessionManager().userNickname!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             )
           else
             IconButton(
