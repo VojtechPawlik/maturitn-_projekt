@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/session_manager.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
+import 'champions_league_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -606,8 +607,27 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         subtitle: Text(competition.country),
-        trailing: isSelected ? const Icon(Icons.check, color: Color(0xFF0A84FF)) : null,
-        onTap: () => _selectCompetition(competition),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected) const Icon(Icons.check, color: Color(0xFF0A84FF)),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_forward_ios, size: 16),
+          ],
+        ),
+        onTap: () {
+          // Pokud je to Champions League, otevři obrazovku s tabulkou
+          if (competition.id == '7') { // Champions League má ID '7'
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ChampionsLeagueScreen(),
+              ),
+            );
+          } else {
+            _selectCompetition(competition);
+          }
+        },
       ),
     );
   }

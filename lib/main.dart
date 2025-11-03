@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:strike_app/firebase_options.dart';
 import 'screens/splash_screen_new.dart';
+import 'screens/competitions_screen.dart';
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
