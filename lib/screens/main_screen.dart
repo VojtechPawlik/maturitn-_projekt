@@ -3,6 +3,12 @@ import '../services/session_manager.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'champions_league_screen.dart';
+import 'premier_league_screen.dart';
+import 'serie_a_screen.dart';
+import 'la_liga_screen.dart';
+import 'bundesliga_screen.dart';
+import 'ligue1_screen.dart';
+import 'europa_league_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -24,7 +30,6 @@ class _MainScreenState extends State<MainScreen> {
     Competition(id: '3', name: 'Serie A', country: 'Itálie', logo: '🇮🇹'),
     Competition(id: '4', name: 'Bundesliga', country: 'Německo', logo: '🇩🇪'),
     Competition(id: '5', name: 'Ligue 1', country: 'Francie', logo: '🇫🇷'),
-    Competition(id: '6', name: 'Fortuna Liga', country: 'Česká republika', logo: '🇨🇿'),
     Competition(id: '7', name: 'Champions League', country: 'Evropa', logo: '🏆'),
     Competition(id: '8', name: 'Europa League', country: 'Evropa', logo: '🥈'),
   ];
@@ -622,6 +627,48 @@ class _MainScreenState extends State<MainScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => const ChampionsLeagueScreen(),
+              ),
+            );
+          } else if (competition.id == '1') { // Premier League má ID '1'
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PremierLeagueScreen(),
+              ),
+            );
+          } else if (competition.id == '3') { // Serie A má ID '3'
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SerieAScreen(),
+              ),
+            );
+          } else if (competition.id == '2') { // La Liga má ID '2'
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const LaLigaScreen(),
+              ),
+            );
+          } else if (competition.id == '4') { // Bundesliga má ID '4'
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BundesligaScreen(),
+              ),
+            );
+          } else if (competition.id == '5') { // Ligue 1 má ID '5'
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Ligue1Screen(),
+              ),
+            );
+          } else if (competition.id == '8') { // Europa League má ID '8'
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const EuropaLeagueScreen(),
               ),
             );
           } else {
