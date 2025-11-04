@@ -14,7 +14,7 @@ class GoogleSheetsService {
   
   static Future<List<ChampionsLeagueTeam>> getChampionsLeagueData() async {
     try {
-      final String range = 'List 1!A2:J100'; // A až J (10 sloupců včetně loga)
+      final String range = 'List 1!A2:G100'; // A až G (7 sloupců)
       final String url = 
         'https://sheets.googleapis.com/v4/spreadsheets/$spreadsheetId/values/$range?key=$apiKey';
       
@@ -37,7 +37,7 @@ class GoogleSheetsService {
 
   static Future<List<PremierLeagueTeam>> getPremierLeagueData() async {
     try {
-      final String range = 'List 2!A2:J100'; // List 2 pro Premier League
+      final String range = 'List 2!A2:G100'; // A až G (7 sloupců včetně barev)
       final String url = 
         'https://sheets.googleapis.com/v4/spreadsheets/$spreadsheetId/values/$range?key=$apiKey';
       
@@ -60,7 +60,7 @@ class GoogleSheetsService {
 
   static Future<List<SerieATeam>> getSerieAData() async {
     try {
-      final String range = 'List 3!A2:J100'; // List 3 pro Serie A
+      final String range = 'List 3!A2:G100'; // A až G (7 sloupců)
       final String url = 
         'https://sheets.googleapis.com/v4/spreadsheets/$spreadsheetId/values/$range?key=$apiKey';
       
@@ -83,7 +83,7 @@ class GoogleSheetsService {
 
   static Future<List<LaLigaTeam>> getLaLigaData() async {
     try {
-      final String range = 'List 4!A2:J100'; // List 4 pro La Liga
+      final String range = 'List 4!A2:G100'; // A až G (7 sloupců)
       final String url = 
         'https://sheets.googleapis.com/v4/spreadsheets/$spreadsheetId/values/$range?key=$apiKey';
       
@@ -106,7 +106,7 @@ class GoogleSheetsService {
 
   static Future<List<BundesligaTeam>> getBundesligaData() async {
     try {
-      final String range = 'List 5!A2:J100'; // List 5 pro Bundesliga
+      final String range = 'List 5!A2:G100'; // A až G (7 sloupců)
       final String url = 
         'https://sheets.googleapis.com/v4/spreadsheets/$spreadsheetId/values/$range?key=$apiKey';
       
@@ -129,7 +129,7 @@ class GoogleSheetsService {
 
   static Future<List<Ligue1Team>> getLigue1Data() async {
     try {
-      final String range = 'List 7!A2:J100'; // List 7 pro Ligue 1
+      final String range = 'List 7!A2:G100'; // List 7 pro Ligue 1
       final String url = 
         'https://sheets.googleapis.com/v4/spreadsheets/$spreadsheetId/values/$range?key=$apiKey';
       
@@ -152,7 +152,7 @@ class GoogleSheetsService {
 
   static Future<List<EuropaLeagueTeam>> getEuropaLeagueData() async {
     try {
-      final String range = 'List 6!A2:J100'; // List 6 pro Europa League
+      final String range = 'List 6!A2:G100'; // List 6 pro Europa League
       final String url = 
         'https://sheets.googleapis.com/v4/spreadsheets/$spreadsheetId/values/$range?key=$apiKey';
       
