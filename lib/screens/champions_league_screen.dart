@@ -13,11 +13,20 @@ class _ChampionsLeagueScreenState extends State<ChampionsLeagueScreen> {
   List<ChampionsLeagueTeam> teams = [];
   bool isLoading = true;
   String? error;
+  String competitionLogo = '';
 
   @override
   void initState() {
     super.initState();
     loadData();
+    loadLogo();
+  }
+
+  Future<void> loadLogo() async {
+    final logo = await GoogleSheetsService.getCompetitionLogo('List 8', 'A2');
+    setState(() {
+      competitionLogo = logo;
+    });
   }
 
   Future<void> loadData() async {
@@ -44,7 +53,29 @@ class _ChampionsLeagueScreenState extends State<ChampionsLeagueScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Liga mistrů'),
+        title: Row(
+          children: [
+            if (competitionLogo.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Image.network(
+                  competitionLogo,
+                  width: 32,
+                  height: 32,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(Icons.emoji_events, size: 24);
+                  },
+                ),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.only(right: 12),
+                child: Icon(Icons.emoji_events, size: 24),
+              ),
+            const Text('Liga mistrů'),
+          ],
+        ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         actions: [

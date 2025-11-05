@@ -172,4 +172,34 @@ class GoogleSheetsService {
       throw Exception('Error fetching data: $e');
     }
   }
+
+  static Future<String> getCompetitionLogo(String listName, String cell) async {
+    try {
+      final String range = '$listName!$cell';
+      final String url = 
+        'https://sheets.googleapis.com/v4/spreadsheets/$spreadsheetId/values/$range?key=$apiKey';
+      
+      print('Načítám logo z: $range'); // Debug
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        final List<dynamic> values = data['values'] ?? [];
+        
+        if (values.isNotEmpty && values[0].isNotEmpty) {
+          final logo = values[0][0].toString();
+          print('Načteno logo: $logo'); // Debug
+          return logo;
+        }
+        print('Prázdná data pro $range'); // Debug
+        return '';
+      } else {
+        print('Chyba HTTP ${response.statusCode} pro $range'); // Debug
+        throw Exception('Failed to load logo: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Exception při načítání loga: $e'); // Debug
+      return '';
+    }
+  }
 }
