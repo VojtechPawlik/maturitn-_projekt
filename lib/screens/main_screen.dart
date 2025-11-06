@@ -9,6 +9,7 @@ import 'la_liga_screen.dart';
 import 'bundesliga_screen.dart';
 import 'ligue1_screen.dart';
 import 'europa_league_screen.dart';
+import 'teams_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -272,7 +273,7 @@ class _MainScreenState extends State<MainScreen> {
           _buildFavoriteTeamsScreen(),
           _buildCompetitionsScreen(),
           _buildMainScreen(),
-          _buildTeamsScreen(),
+          const TeamsScreen(), // Použití samostatné TeamsScreen z Google Sheets
           _buildNewsScreen(),
         ],
       ),
@@ -484,23 +485,8 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // Týmy (napravo od hlavní)
-  Widget _buildTeamsScreen() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader('Týmy - ${_selectedCompetition?.name ?? 'Všechny'}'),
-          _buildTeamCard('Manchester City', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Premier League'),
-          _buildTeamCard('Arsenal', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Premier League'),
-          _buildTeamCard('Liverpool', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Premier League'),
-          _buildTeamCard('Chelsea', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Premier League'),
-          _buildTeamCard('Tottenham', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Premier League'),
-        ],
-      ),
-    );
-  }
+  // Týmy (napravo od hlavní) - SMAZÁNO, používá se TeamsScreen
+  // Widget _buildTeamsScreen() - odstraněno
 
   // Novinky (úplně napravo)
   Widget _buildNewsScreen() {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'teams_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -21,7 +20,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final List<String> allItems = <String>[
-      ...TeamsScreen.czechTeams,
+      'Arsenal',
       'Tomáš Čvančara',
       'Lukáš Haraslín',
       'Jan Kuchta',

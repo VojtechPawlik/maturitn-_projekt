@@ -7,6 +7,7 @@ import '../models/la_liga_team.dart';
 import '../models/bundesliga_team.dart';
 import '../models/ligue1_team.dart';
 import '../models/europa_league_team.dart';
+import '../models/team.dart';
 
 class GoogleSheetsService {
   static const String spreadsheetId = '16wV1v15gxBlR-UP8vUTKfDq9dRPow88FhlLdPljAYAM';
@@ -200,6 +201,55 @@ class GoogleSheetsService {
     } catch (e) {
       print('Exception při načítání loga: $e'); // Debug
       return '';
+    }
+  }
+
+  static Future<Team> getTeamData(String listName) async {
+    try {
+      // Načteme všechny potřebné buňky najednou
+      final ranges = [
+        '$listName!D2', // název
+        '$listName!E2', // sezona
+        '$listName!G2', // stát
+        '$listName!S6', // logo
+        '$listName!V6', // stadion
+        '$listName!X6', // stát stadionu
+        '$listName!Y6', // město
+        '$listName!AD6', // liga
+      ];
+      
+      final urls = ranges.map((range) => 
+        'https://sheets.googleapis.com/v4/spreadsheets/$spreadsheetId/values/$range?key=$apiKey'
+      ).toList();
+      
+      final responses = await Future.wait(
+        urls.map((url) => http.get(Uri.parse(url)))
+      );
+      
+      final values = responses.map((response) {
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final vals = data['values'] as List?;
+          if (vals != null && vals.isNotEmpty && vals[0].isNotEmpty) {
+            return vals[0][0].toString();
+          }
+        }
+        return '';
+      }).toList();
+      
+      return Team(
+        name: values[0],
+        season: values[1],
+        country: values[2],
+        logoUrl: values[3],
+        stadium: values[4],
+        stadiumCountry: values[5],
+        city: values[6],
+        league: values[7],
+      );
+    } catch (e) {
+      print('Chyba při načítání týmu: $e');
+      throw Exception('Error fetching team data: $e');
     }
   }
 }
