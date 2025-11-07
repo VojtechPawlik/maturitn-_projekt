@@ -53,30 +53,8 @@ class _ChampionsLeagueScreenState extends State<ChampionsLeagueScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            if (competitionLogo.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Image.network(
-                  competitionLogo,
-                  width: 32,
-                  height: 32,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.emoji_events, size: 24);
-                  },
-                ),
-              )
-            else
-              const Padding(
-                padding: EdgeInsets.only(right: 12),
-                child: Icon(Icons.emoji_events, size: 24),
-              ),
-            const Text('Liga mistrů'),
-          ],
-        ),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: const Text('Champions League'),
+        backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
         actions: [
           IconButton(

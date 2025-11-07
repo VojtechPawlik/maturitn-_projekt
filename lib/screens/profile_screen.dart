@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
+import '../services/localization_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -236,16 +237,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Odhlášení'),
-        content: const Text('Opravdu se chcete odhlásit?'),
+        title: Text(LocalizationService.isEnglish ? 'Logout' : 'Odhlášení'),
+        content: Text(LocalizationService.isEnglish ? 'Are you sure you want to logout?' : 'Opravdu se chcete odhlásit?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Zrušit'),
+            child: Text(LocalizationService.translate('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Odhlásit se'),
+            child: Text(LocalizationService.translate('logout')),
           ),
         ],
       ),
@@ -274,7 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil'),
+        title: Text(LocalizationService.translate('profile')),
         centerTitle: true,
         backgroundColor: const Color(0xFF0A84FF),
         foregroundColor: Colors.white,
@@ -350,11 +351,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Přezdívka
             TextFormField(
               controller: _nicknameController,
-              decoration: const InputDecoration(
-                labelText: 'Přezdívka',
-                prefixIcon: Icon(Icons.person_outline),
-                border: OutlineInputBorder(),
-                helperText: 'Tato přezdívka se bude zobrazovat v aplikaci',
+              decoration: InputDecoration(
+                labelText: LocalizationService.translate('nickname'),
+                prefixIcon: const Icon(Icons.person_outline),
+                border: const OutlineInputBorder(),
+                helperText: LocalizationService.isEnglish 
+                  ? 'This nickname will be displayed in the app'
+                  : 'Tato přezdívka se bude zobrazovat v aplikaci',
               ),
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _saveProfile(),
@@ -369,9 +372,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Informace o účtu',
-                      style: TextStyle(
+                    Text(
+                      LocalizationService.isEnglish ? 'Account Information' : 'Informace o účtu',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -379,7 +382,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 12),
                     ListTile(
                       leading: const Icon(Icons.email_outlined),
-                      title: const Text('Email'),
+                      title: Text(LocalizationService.translate('email')),
                       subtitle: Text(_userEmail),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -408,7 +411,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           )
                         : const Icon(Icons.save),
-                    label: Text(_isLoading ? 'Ukládám...' : 'Uložit profil'),
+                    label: Text(_isLoading 
+                      ? (LocalizationService.isEnglish ? 'Saving...' : 'Ukládám...')
+                      : LocalizationService.translate('save_changes')),
                   ),
                 ),
                 
@@ -420,7 +425,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _isLoading ? null : _logout,
                     icon: const Icon(Icons.logout),
-                    label: const Text('Odhlásit se'),
+                    label: Text(LocalizationService.translate('logout')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),

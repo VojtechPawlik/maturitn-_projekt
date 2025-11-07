@@ -45,7 +45,7 @@ class _PremierLeagueScreenState extends State<PremierLeagueScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Premier League'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
         actions: [
           IconButton(

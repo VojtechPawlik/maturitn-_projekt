@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/google_sheets_service.dart';
 import '../models/team.dart';
 import 'team_detail_screen.dart';
+import '../services/localization_service.dart';
 
 class TeamsScreen extends StatefulWidget {
-  const TeamsScreen({super.key});
+  final Set<String>? favoriteTeams;
+  final Function(Set<String>)? onFavoritesChanged;
+  
+  const TeamsScreen({
+    super.key,
+    this.favoriteTeams,
+    this.onFavoritesChanged,
+  });
 
   @override
   State<TeamsScreen> createState() => _TeamsScreenState();
@@ -18,11 +27,21 @@ class _TeamsScreenState extends State<TeamsScreen> {
   String searchQuery = '';
   String? selectedLeague;
   final TextEditingController _searchController = TextEditingController();
+  late Set<String> favoriteTeams; // Oblíbené týmy
 
   @override
   void initState() {
     super.initState();
-    loadTeams();
+    favoriteTeams = widget.favoriteTeams ?? {};
+    _loadFavorites(); // Načíst uložené oblíbené
+    _loadTeams();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Aktualizovat stránku při změně jazyka
+    setState(() {});
   }
 
   @override
@@ -41,7 +60,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
     });
   }
 
-  Future<void> loadTeams() async {
+  Future<void> _loadTeams() async {
     setState(() {
       isLoading = true;
       error = null;
@@ -76,17 +95,60 @@ class _TeamsScreenState extends State<TeamsScreen> {
     }
   }
 
+  void _toggleFavorite(String teamName) {
+    setState(() {
+      if (favoriteTeams.contains(teamName)) {
+        favoriteTeams.remove(teamName);
+      } else {
+        favoriteTeams.add(teamName);
+      }
+    });
+    
+    // Notifikovat parent o změně
+    widget.onFavoritesChanged?.call(favoriteTeams);
+    
+    // Uložit do SharedPreferences
+    _saveFavorites();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          favoriteTeams.contains(teamName)
+              ? '$teamName přidán do oblíbených ❤️'
+              : '$teamName odebrán z oblíbených',
+        ),
+        duration: const Duration(seconds: 1),
+        backgroundColor: favoriteTeams.contains(teamName) ? Colors.green : Colors.grey,
+      ),
+    );
+  }
+
+  Future<void> _saveFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('favorite_teams', favoriteTeams.toList());
+  }
+
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedFavorites = prefs.getStringList('favorite_teams') ?? [];
+    setState(() {
+      favoriteTeams = savedFavorites.toSet();
+    });
+    // Notifikovat parent o načtených datech
+    widget.onFavoritesChanged?.call(favoriteTeams);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Týmy'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: Text(LocalizationService.translate('teams')),
+        backgroundColor: const Color(0xFF5E936C),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: loadTeams,
+            onPressed: _loadTeams,
           ),
         ],
       ),
@@ -99,11 +161,11 @@ class _TeamsScreenState extends State<TeamsScreen> {
                     children: [
                       const Icon(Icons.error_outline, size: 64, color: Colors.red),
                       const SizedBox(height: 16),
-                      Text('Chyba: $error'),
+                      Text('${LocalizationService.translate('error')}: $error'),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: loadTeams,
-                        child: const Text('Zkusit znovu'),
+                        onPressed: _loadTeams,
+                        child: Text(LocalizationService.translate('try_again')),
                       ),
                     ],
                   ),
@@ -116,7 +178,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                       child: TextField(
                         controller: _searchController,
                         decoration: InputDecoration(
-                          hintText: 'Vyhledat tým...',
+                          hintText: LocalizationService.translate('search_team'),
                           prefixIcon: const Icon(Icons.search),
                           suffixIcon: searchQuery.isNotEmpty
                               ? IconButton(
@@ -155,7 +217,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                               scrollDirection: Axis.horizontal,
                               child: Row(
                                 children: [
-                                  _buildLeagueChip('Všechny'),
+                                  _buildLeagueChip(LocalizationService.translate('all')),
                                   ...teams.map((t) => t.league).toSet().map((league) => _buildLeagueChip(league)),
                                 ],
                               ),
@@ -175,7 +237,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                   Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Žádné týmy nenalezeny',
+                                    LocalizationService.translate('no_teams_found'),
                                     style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                                   ),
                                 ],
@@ -243,6 +305,18 @@ class _TeamsScreenState extends State<TeamsScreen> {
                                 color: Colors.grey[400],
                                 size: 20,
                               ),
+                              IconButton(
+                                icon: Icon(
+                                  favoriteTeams.contains(team.name) ? Icons.favorite : Icons.favorite_border,
+                                  color: favoriteTeams.contains(team.name) ? Colors.red : null,
+                                  size: 24,
+                                ),
+                                onPressed: () {
+                                  _toggleFavorite(team.name);
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
                             ],
                           ),
                         ),
@@ -257,7 +331,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
   }
 
   Widget _buildLeagueChip(String league) {
-    final isSelected = selectedLeague == league || (league == 'Všechny' && selectedLeague == null);
+    final isSelected = selectedLeague == league || (league == LocalizationService.translate('all') && selectedLeague == null);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
@@ -272,7 +346,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
         selectedColor: Theme.of(context).colorScheme.primary,
         onSelected: (selected) {
           setState(() {
-            selectedLeague = league == 'Všechny' ? null : league;
+            selectedLeague = league == LocalizationService.translate('all') ? null : league;
           });
           _filterTeams();
         },

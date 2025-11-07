@@ -45,7 +45,7 @@ class _LaLigaScreenState extends State<LaLigaScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('La Liga'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
         actions: [
           IconButton(

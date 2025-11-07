@@ -10,6 +10,9 @@ import 'bundesliga_screen.dart';
 import 'ligue1_screen.dart';
 import 'europa_league_screen.dart';
 import 'teams_screen.dart';
+import 'settings_screen.dart';
+import '../services/localization_service.dart';
+
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -22,11 +25,12 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 2; // Hlavní stránka je uprostřed (index 2)
   DateTime _selectedDate = DateTime.now();
   final ScrollController _calendarController = ScrollController();
-  List<String> _favoriteTeams = [];
+  Set<String> _favoriteTeams = {};
+
   
   // Seznam dostupných soutěží
   final List<Competition> _competitions = [
-    Competition(id: '1', name: 'Premier League', country: 'Anglie', logo: '🏴󠁧󠁢󠁥󠁮󠁧󠁿'),
+    Competition(id: '1', name: 'Premier League', country: 'Anglie', logo: '🏴'),
     Competition(id: '2', name: 'La Liga', country: 'Španělsko', logo: '🇪🇸'),
     Competition(id: '3', name: 'Serie A', country: 'Itálie', logo: '🇮🇹'),
     Competition(id: '4', name: 'Bundesliga', country: 'Německo', logo: '🇩🇪'),
@@ -134,16 +138,21 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            Text(_selectedCompetition?.logo ?? '⚽'),
-            const SizedBox(width: 8),
-            Text(_selectedCompetition?.name ?? 'Strike!'),
-          ],
-        ),
+        title: const Text('Strike!'),
         centerTitle: false,
-        backgroundColor: const Color(0xFF0A84FF),
+        backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.settings),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SettingsScreen(),
+              ),
+            );
+          },
+        ),
         actions: [
           if (_isLoggedIn)
             Padding(
@@ -207,73 +216,20 @@ class _MainScreenState extends State<MainScreen> {
             ),
         ],
       ),
-      drawer: Drawer(
-        child: Column(
-          children: [
-            // Header drawer
-            DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF0A84FF),
-              ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.sports_soccer,
-                    size: 48,
-                    color: Colors.white,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Vyberte soutěž',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Seznam soutěží
-            Expanded(
-              child: ListView.builder(
-                itemCount: _competitions.length,
-                itemBuilder: (context, index) {
-                  final competition = _competitions[index];
-                  final isSelected = competition.id == _selectedCompetition?.id;
-                  
-                  return ListTile(
-                    leading: Text(
-                      competition.logo,
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                    title: Text(
-                      competition.name,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? const Color(0xFF0A84FF) : null,
-                      ),
-                    ),
-                    subtitle: Text(competition.country),
-                    selected: isSelected,
-                    selectedTileColor: const Color(0xFF0A84FF).withOpacity(0.1),
-                    onTap: () => _selectCompetition(competition),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
       body: IndexedStack(
         index: _currentIndex,
         children: [
           _buildFavoriteTeamsScreen(),
           _buildCompetitionsScreen(),
           _buildMainScreen(),
-          const TeamsScreen(), // Použití samostatné TeamsScreen z Google Sheets
+          TeamsScreen(
+            favoriteTeams: _favoriteTeams,
+            onFavoritesChanged: (newFavorites) {
+              setState(() {
+                _favoriteTeams = newFavorites;
+              });
+            },
+          ), // Použití samostatné TeamsScreen z Google Sheets
           _buildNewsScreen(),
         ],
       ),
@@ -283,26 +239,26 @@ class _MainScreenState extends State<MainScreen> {
         onTap: (index) => setState(() => _currentIndex = index),
         selectedItemColor: const Color(0xFF0A84FF),
         unselectedItemColor: Colors.grey,
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Oblíbené',
+            icon: const Icon(Icons.favorite),
+            label: LocalizationService.translate('favorites'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.emoji_events),
-            label: 'Soutěže',
+            icon: const Icon(Icons.emoji_events),
+            label: LocalizationService.translate('competitions'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Domů',
+            icon: const Icon(Icons.home),
+            label: LocalizationService.translate('home'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.groups),
-            label: 'Týmy',
+            icon: const Icon(Icons.groups),
+            label: LocalizationService.translate('teams'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.article),
-            label: 'Novinky',
+            icon: const Icon(Icons.article),
+            label: LocalizationService.translate('news'),
           ),
         ],
       ),
@@ -316,28 +272,31 @@ class _MainScreenState extends State<MainScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Oblíbené týmy'),
+          _buildSectionHeader(LocalizationService.translate('favorite_teams')),
           if (_isLoggedIn) ...[
             if (_favoriteTeams.isNotEmpty) ...[
-              ..._favoriteTeams.map((team) => _buildTeamCard(team, '⚽', 'Liga', isFavorite: true)),
+              ..._favoriteTeams.map((teamName) {
+                // Použít základní zobrazení týmu
+                return _buildTeamCard(teamName, '⚽', LocalizationService.translate('league'), isFavorite: true);
+              }).toList(),
             ] else ...[
-              const Card(
+              Card(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      Icon(Icons.favorite_border, size: 48, color: Colors.grey),
-                      SizedBox(height: 16),
+                      const Icon(Icons.favorite_border, size: 48, color: Colors.grey),
+                      const SizedBox(height: 16),
                       Text(
-                        'Zatím nemáte oblíbené týmy',
+                        LocalizationService.translate('no_favorite_teams'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey),
+                        style: const TextStyle(color: Colors.grey),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
-                        'Přidejte je kliknutím na srdcová na stránce týmů',
+                        LocalizationService.translate('add_favorites_hint'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ],
                   ),
@@ -345,17 +304,17 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ],
           ] else ...[
-            const Card(
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    Icon(Icons.favorite_border, size: 48, color: Colors.grey),
-                    SizedBox(height: 16),
+                    const Icon(Icons.favorite_border, size: 48, color: Colors.grey),
+                    const SizedBox(height: 16),
                     Text(
-                      'Přihlaste se pro sledování oblíbených týmů',
+                      LocalizationService.translate('login_for_favorites'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   ],
                 ),
@@ -374,7 +333,7 @@ class _MainScreenState extends State<MainScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Všechny soutěže'),
+          _buildSectionHeader(LocalizationService.translate('all_competitions')),
           ..._competitions.map((competition) => _buildCompetitionCard(competition)),
         ],
       ),
@@ -388,7 +347,9 @@ class _MainScreenState extends State<MainScreen> {
         // Kalendář
         Container(
           padding: const EdgeInsets.all(16),
-          color: Colors.grey[100],
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? const Color(0xFF2D2D2D) 
+              : Colors.grey[100],
           child: Column(
             children: [
               Text(
@@ -417,14 +378,16 @@ class _MainScreenState extends State<MainScreen> {
                         child: Container(
                           width: 50,
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF0A84FF) : Colors.transparent,
+                            color: isSelected 
+                                ? const Color(0xFF5E936C) 
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                             border: isToday 
-                              ? Border.all(color: const Color(0xFF0A84FF), width: 3)
+                              ? Border.all(color: const Color(0xFF5E936C), width: 3)
                               : null,
                             boxShadow: isToday && !isSelected ? [
                               BoxShadow(
-                                color: const Color(0xFF0A84FF).withOpacity(0.3),
+                                color: const Color(0xFF5E936C).withOpacity(0.3),
                                 blurRadius: 8,
                                 spreadRadius: 1,
                               ),
@@ -441,8 +404,10 @@ class _MainScreenState extends State<MainScreen> {
                                   color: isSelected 
                                     ? Colors.white 
                                     : isToday 
-                                      ? const Color(0xFF0A84FF)
-                                      : Colors.grey[600],
+                                      ? const Color(0xFF5E936C)
+                                      : Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.white70
+                                        : Colors.grey[600],
                                 ),
                               ),
                               Text(
@@ -453,8 +418,10 @@ class _MainScreenState extends State<MainScreen> {
                                   color: isSelected 
                                     ? Colors.white 
                                     : isToday
-                                      ? const Color(0xFF0A84FF)
-                                      : Colors.black,
+                                      ? const Color(0xFF5E936C)
+                                      : Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black,
                                 ),
                               ),
                             ],
@@ -495,21 +462,27 @@ class _MainScreenState extends State<MainScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Nejnovější zprávy'),
+          _buildSectionHeader(LocalizationService.translate('latest_news')),
           _buildNewsCard(
-            'Nový přestup sezóny',
-            'Hvězdný hráč přestupuje do Premier League za rekordní částku...',
-            '2 hodiny',
+            LocalizationService.isEnglish ? 'New Transfer of the Season' : 'Nový přestup sezóny',
+            LocalizationService.isEnglish 
+              ? 'Star player transfers to Premier League for record fee...'
+              : 'Hvězdný hráč přestupuje do Premier League za rekordní částku...',
+            LocalizationService.isEnglish ? '2 hours ago' : 'před 2 hodinami',
           ),
           _buildNewsCard(
-            'Zranění klíčového hráče',
-            'Kapitán týmu bude chybět následující 3 zápasy kvůli zranění...',
-            '4 hodiny',
+            LocalizationService.isEnglish ? 'Key Player Injury' : 'Zranění klíčového hráče',
+            LocalizationService.isEnglish
+              ? 'Team captain will miss next 3 matches due to injury...'
+              : 'Kapitán týmu bude chybět následující 3 zápasy kvůli zranění...',
+            LocalizationService.isEnglish ? '4 hours ago' : 'před 4 hodinami',
           ),
           _buildNewsCard(
-            'Změna v trenérském štábu',
-            'Klub oznámil jmenování nového asistenta trenéra...',
-            '6 hodin',
+            LocalizationService.isEnglish ? 'Coaching Staff Change' : 'Změna v trenérském štábu',
+            LocalizationService.isEnglish
+              ? 'Club announces appointment of new assistant coach...'
+              : 'Klub oznámil jmenování nového asistenta trenéra...',
+            LocalizationService.isEnglish ? '6 hours ago' : 'před 6 hodinami',
           ),
         ],
       ),
@@ -519,18 +492,15 @@ class _MainScreenState extends State<MainScreen> {
   // Pomocné metody pro datum
   String _getFormattedDate(DateTime date) {
     final now = DateTime.now();
-    if (_isSameDay(date, now)) return 'Dnes';
-    if (_isSameDay(date, now.subtract(const Duration(days: 1)))) return 'Včera';
-    if (_isSameDay(date, now.add(const Duration(days: 1)))) return 'Zítra';
+    if (_isSameDay(date, now)) return LocalizationService.translate('today');
+    if (_isSameDay(date, now.subtract(const Duration(days: 1)))) return LocalizationService.translate('yesterday');
+    if (_isSameDay(date, now.add(const Duration(days: 1)))) return LocalizationService.translate('tomorrow');
     
-    final months = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čer', 
-                   'Črc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
-    return '${date.day}. ${months[date.month - 1]}';
+    return '${date.day}. ${LocalizationService.getMonthName(date.month)}';
   }
 
   String _getDayName(DateTime date) {
-    final days = ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'];
-    return days[date.weekday - 1];
+    return LocalizationService.getDayName(date.weekday);
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
@@ -541,9 +511,9 @@ class _MainScreenState extends State<MainScreen> {
 
   String _getMatchesSectionTitle() {
     final now = DateTime.now();
-    if (_isSameDay(_selectedDate, now)) return 'Dnešní zápasy';
-    if (_selectedDate.isBefore(now)) return 'Výsledky';
-    return 'Nadcházející zápasy';
+    if (_isSameDay(_selectedDate, now)) return LocalizationService.translate('todays_matches');
+    if (_selectedDate.isBefore(now)) return LocalizationService.translate('results');
+    return LocalizationService.translate('upcoming_matches');
   }
 
   Widget _buildMatchesForDate(DateTime date) {
@@ -664,6 +634,8 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
+
+
 
   Widget _buildTeamCard(String teamName, String flag, String league, {bool isFavorite = false}) {
     final isFav = _favoriteTeams.contains(teamName);

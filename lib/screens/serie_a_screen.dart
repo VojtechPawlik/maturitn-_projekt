@@ -45,7 +45,7 @@ class _SerieAScreenState extends State<SerieAScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Serie A'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
         actions: [
           IconButton(

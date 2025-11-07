@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/team.dart';
+import '../services/localization_service.dart';
 
 class TeamDetailScreen extends StatelessWidget {
   final Team team;
@@ -15,13 +16,13 @@ class TeamDetailScreen extends StatelessWidget {
           title: Text(team.name),
           backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.white,
-          bottom: const TabBar(
+          bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
             tabs: [
-              Tab(icon: Icon(Icons.info_outline), text: 'Informace'),
-              Tab(icon: Icon(Icons.people_outline), text: 'Soupiska'),
+              Tab(icon: const Icon(Icons.info_outline), text: LocalizationService.translate('information')),
+              Tab(icon: const Icon(Icons.people_outline), text: LocalizationService.translate('squad')),
             ],
           ),
         ),
@@ -55,12 +56,12 @@ class TeamDetailScreen extends StatelessWidget {
                 : const Icon(Icons.sports_soccer, size: 120),
           ),
           const SizedBox(height: 24),
-          _buildInfoCard('Název týmu', team.name, Icons.sports_soccer),
-          _buildInfoCard('Liga', team.league, Icons.emoji_events),
-          _buildInfoCard('Sezona', team.season, Icons.calendar_today),
-          _buildInfoCard('Stadion', team.stadium, Icons.stadium),
-          _buildInfoCard('Město', '${team.city}, ${team.stadiumCountry}', Icons.location_city),
-          _buildInfoCard('Země', team.country, Icons.flag),
+          _buildInfoCard(LocalizationService.translate('team_name'), team.name, Icons.sports_soccer),
+          _buildInfoCard(LocalizationService.translate('league'), team.league, Icons.emoji_events),
+          _buildInfoCard(LocalizationService.translate('season'), team.season, Icons.calendar_today),
+          _buildInfoCard(LocalizationService.translate('stadium'), team.stadium, Icons.stadium),
+          _buildInfoCard(LocalizationService.translate('city'), '${team.city}, ${team.stadiumCountry}', Icons.location_city),
+          _buildInfoCard(LocalizationService.translate('country'), team.country, Icons.flag),
         ],
       ),
     );
@@ -111,7 +112,7 @@ class TeamDetailScreen extends StatelessWidget {
           Icon(Icons.people_outline, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'Soupiska bude přidána později',
+            LocalizationService.translate('squad_later'),
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],

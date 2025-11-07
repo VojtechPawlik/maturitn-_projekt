@@ -45,7 +45,7 @@ class _Ligue1ScreenState extends State<Ligue1Screen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ligue 1'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
         actions: [
           IconButton(

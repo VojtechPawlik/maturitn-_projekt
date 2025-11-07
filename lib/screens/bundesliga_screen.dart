@@ -45,7 +45,7 @@ class _BundesligaScreenState extends State<BundesligaScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bundesliga'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
