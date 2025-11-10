@@ -70,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF0A84FF)),
+              leading: const Icon(Icons.photo_library, color: Color(0xFF3E5F44)),
               title: const Text('Vybrat z galerie'),
               subtitle: const Text('Otevře galerii s vašimi obrázky'),
               onTap: () {
@@ -79,7 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF0A84FF)),
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF3E5F44)),
               title: const Text('Pořídit fotku'),
               subtitle: const Text('Otevře kameru pro pořízení nové fotky'),
               onTap: () {
@@ -276,8 +276,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(LocalizationService.translate('profile')),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF0A84FF),
+        backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -296,8 +295,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: BoxShape.circle,
                       color: Colors.grey[200],
                       border: Border.all(
-                        color: const Color(0xFF0A84FF),
-                        width: 3,
+                        color: const Color(0xFF3E5F44), // Zelený rámeček
+                        width: 4,
                       ),
                     ),
                     child: _profileImagePath == null
@@ -328,7 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         height: 36,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF0A84FF),
+                          color: const Color(0xFF3E5F44),
                           border: Border.all(
                             color: Colors.white,
                             width: 2,

@@ -237,7 +237,7 @@ class _MainScreenState extends State<MainScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        selectedItemColor: const Color(0xFF0A84FF),
+        selectedItemColor: const Color(0xFF3E5F44),
         unselectedItemColor: Colors.grey,
         items: [
           BottomNavigationBarItem(
@@ -554,7 +554,7 @@ class _MainScreenState extends State<MainScreen> {
     
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: isSelected ? const Color(0xFF0A84FF).withOpacity(0.1) : null,
+      color: isSelected ? const Color(0xFF3E5F44).withOpacity(0.1) : null,
       child: ListTile(
         leading: Text(
           competition.logo,
@@ -564,14 +564,14 @@ class _MainScreenState extends State<MainScreen> {
           competition.name,
           style: TextStyle(
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? const Color(0xFF0A84FF) : null,
+            color: isSelected ? const Color(0xFF3E5F44) : null,
           ),
         ),
         subtitle: Text(competition.country),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isSelected) const Icon(Icons.check, color: Color(0xFF0A84FF)),
+            if (isSelected) const Icon(Icons.check, color: Color(0xFF3E5F44)),
             const SizedBox(width: 8),
             const Icon(Icons.arrow_forward_ios, size: 16),
           ],

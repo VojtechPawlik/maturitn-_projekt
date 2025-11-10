@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
+import '../services/localization_service.dart';
 import 'register_screen.dart';
 import 'email_verification_screen.dart';
 
@@ -218,8 +219,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Přihlášení'),
-        centerTitle: true,
+        title: Text(LocalizationService.translate('login')),
+        backgroundColor: const Color(0xFF3E5F44),
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -233,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const Icon(
                 Icons.sports_soccer,
                 size: 80,
-                color: Color(0xFF0A84FF),
+                color: Color(0xFF3E5F44),
               ),
               const SizedBox(height: 16),
               const Text(
@@ -242,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0A84FF),
+                  color: Color(0xFF3E5F44),
                 ),
               ),
               const SizedBox(height: 48),

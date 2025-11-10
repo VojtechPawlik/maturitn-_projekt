@@ -108,7 +108,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A84FF),
+      backgroundColor: const Color(0xFF3E5F44),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -153,7 +153,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       child: const Icon(
                         Icons.sports_soccer,
                         size: 60,
-                        color: Color(0xFF0A84FF),
+                        color: Color(0xFF3E5F44),
                       ),
                     ),
                   );
@@ -221,7 +221,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         onPressed: _startApp,
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF0A84FF),
+                          foregroundColor: const Color(0xFF3E5F44),
                           minimumSize: const Size(200, 56),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(28),

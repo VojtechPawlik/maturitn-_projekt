@@ -95,7 +95,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A84FF),
+      backgroundColor: const Color(0xFF3E5F44), // Zelená místo modré
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -128,8 +128,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
+                    color: const Color(0xFF5E936C), // Světlejší zelená
+                    borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.2),
@@ -141,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       child: const Icon(
                         Icons.sports_soccer,
                         size: 60,
-                        color: Color(0xFF0A84FF),
+                        color: Colors.white,
                       ),
                     ),
                   );
@@ -185,10 +185,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               if (_isLoading)
                 const Column(
                   children: [
-                    CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 3,
-                    ),
+                    const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5E936C)),
+                  strokeWidth: 3,
+                ),
                     SizedBox(height: 16),
                     Text(
                       'Načítání...',
@@ -209,7 +209,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         onPressed: _startApp,
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF0A84FF),
+                          foregroundColor: const Color(0xFF3E5F44),
                           minimumSize: const Size(200, 56),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(28),
