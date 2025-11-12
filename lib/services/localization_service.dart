@@ -1,19 +1,25 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 class LocalizationService {
   static String _currentLanguage = 'Čeština';
+  static final ValueNotifier<String> languageNotifier = ValueNotifier<String>('Čeština');
   
   static String get currentLanguage => _currentLanguage;
-  
-  static void setLanguage(String language) {
-    _currentLanguage = language;
-    // TODO: Zde lze později přidat uložení do SharedPreferences
-  }
-  
-  static void initLanguage() {
-    // Inicializace při spuštění aplikace
-    // TODO: Načíst z SharedPreferences
-  }
-  
   static bool get isEnglish => _currentLanguage == 'English';
+
+  static Future<void> loadSavedLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    _currentLanguage = prefs.getString('language') ?? 'Čeština';
+    languageNotifier.value = _currentLanguage;
+  }
+
+  static Future<void> setLanguage(String language) async {
+    _currentLanguage = language;
+    languageNotifier.value = language;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('language', language);
+  }
   
   // Překladové texty
   static const Map<String, Map<String, String>> _translations = {

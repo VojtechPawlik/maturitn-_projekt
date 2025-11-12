@@ -52,19 +52,16 @@ class _LoginScreenState extends State<LoginScreen> {
       await _authService.signInWithEmailPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        rememberMe: _rememberMe,
       );
       
       // Nastavit session po úspěšném přihlášení
       await SessionManager().loginUser(
         email: _emailController.text.trim(),
         nickname: 'Uživatel', // Default nickname
-        rememberMe: _rememberMe,
       );
       
       if (mounted) {
         Navigator.of(context).pop(true); // Předáme true pro indikaci úspěšného přihlášení
-        _showSuccessMessage('Úspěšně přihlášen!');
       }
     } catch (e) {
       if (mounted) {
@@ -88,14 +85,13 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _authService.signInWithGoogle(rememberMe: _rememberMe);
+      final result = await _authService.signInWithGoogle();
       
       if (result != null && mounted) {
         // Nastavit session po úspěšném přihlášení
         await SessionManager().loginUser(
           email: 'google.user@gmail.com', // TODO: Získat skutečný email z Google
           nickname: 'Google uživatel',
-          rememberMe: _rememberMe,
         );
         
         Navigator.of(context).pop(true);
@@ -116,14 +112,13 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _authService.signInWithApple(rememberMe: _rememberMe);
+      final result = await _authService.signInWithApple();
       
       if (result != null && mounted) {
         // Nastavit session po úspěšném přihlášení
         await SessionManager().loginUser(
           email: 'apple.user@icloud.com', // TODO: Získat skutečný email z Apple
           nickname: 'Apple uživatel',
-          rememberMe: _rememberMe,
         );
         
         Navigator.of(context).pop(true);

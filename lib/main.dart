@@ -4,12 +4,17 @@ import 'package:strike_app/firebase_options.dart';
 import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/theme_service.dart';
+import 'services/localization_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );  
+  
+  // Načíst uložený jazyk
+  await LocalizationService.loadSavedLanguage();
+  
   runApp(const MyApp());
 }
 

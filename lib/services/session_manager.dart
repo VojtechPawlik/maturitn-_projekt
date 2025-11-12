@@ -23,29 +23,37 @@ class SessionManager {
 
   // Načíst uložený stav z SharedPreferences
   Future<void> loadSavedSession() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      _isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
-      _userEmail = prefs.getString(_keyUserEmail);
-      _userNickname = prefs.getString(_keyUserNickname);
-      _profileImagePath = prefs.getString(_keyProfileImagePath);
-    } catch (e) {
-      // Pokud se nepodaří načíst, zůstanou výchozí hodnoty
-      _isLoggedIn = false;
-      _userEmail = null;
-      _userNickname = null;
-      _profileImagePath = null;
+    final prefs = await SharedPreferences.getInstance();
+    
+    _isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+    _userEmail = prefs.getString('user_email');
+    
+    // Načíst přezdívku pro konkrétní email
+    if (_userEmail != null) {
+      _userNickname = prefs.getString('nickname_$_userEmail');
     }
+    
+    _profileImagePath = prefs.getString('profile_image_path');
   }
 
   // Přihlášení uživatele
-  Future<void> loginUser({String? email, String? nickname, bool rememberMe = false}) async {
-    _isLoggedIn = true;
-    _userEmail = email;
-    _userNickname = nickname;
+  Future<void> loginUser({required String email, String? nickname}) async {
+    final prefs = await SharedPreferences.getInstance();
     
-    if (rememberMe) {
-      await _saveToPreferences();
+    _userEmail = email;
+    _isLoggedIn = true;
+    
+    // Načíst uloženou přezdívku pro tento email
+    final savedNickname = prefs.getString('nickname_$email');
+    _userNickname = savedNickname ?? nickname ?? email.split('@')[0];
+    
+    // Uložit session
+    await prefs.setString('user_email', email);
+    await prefs.setBool('is_logged_in', true);
+    
+    // Pokud není uložená přezdívka, ulož výchozí
+    if (savedNickname == null && _userNickname != null) {
+      await prefs.setString('nickname_$email', _userNickname!);
     }
   }
 
@@ -60,17 +68,24 @@ class SessionManager {
   }
 
   // Aktualizace uživatelských dat
-  Future<void> updateUserData({String? email, String? nickname, String? profileImagePath}) async {
-    if (_isLoggedIn) {
-      _userEmail = email ?? _userEmail;
-      _userNickname = nickname ?? _userNickname;
-      _profileImagePath = profileImagePath ?? _profileImagePath;
-      
-      // Uložit změny pokud je uživatel trvalě přihlášen
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool(_keyIsLoggedIn) == true) {
-        await _saveToPreferences();
+  Future<void> updateUserData({String? nickname, String? profileImagePath}) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    if (nickname != null) {
+      _userNickname = nickname;
+      // Uložit přezdívku pro konkrétní email
+      if (_userEmail != null) {
+        await prefs.setString('nickname_$_userEmail', nickname);
       }
+    }
+    
+    if (profileImagePath != null) {
+      _profileImagePath = profileImagePath;
+      await prefs.setString('profile_image_path', profileImagePath);
+    } else if (profileImagePath == null && _profileImagePath != null) {
+      // Odstranit profilový obrázek
+      _profileImagePath = null;
+      await prefs.remove('profile_image_path');
     }
   }
 

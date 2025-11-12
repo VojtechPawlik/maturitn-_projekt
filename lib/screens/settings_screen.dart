@@ -33,17 +33,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  void _saveLanguage(String language) {
+  Future<void> _saveLanguage(String language) async {
+    await LocalizationService.setLanguage(language);
+    
     setState(() {
       _selectedLanguage = language;
     });
-    
-    LocalizationService.setLanguage(language);
-    
-    // Restartovat settings screen pro aplikování změn
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const SettingsScreen()),
-    );
   }
 
   @override

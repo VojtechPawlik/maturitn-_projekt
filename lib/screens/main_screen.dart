@@ -204,7 +204,7 @@ class _MainScreenState extends State<MainScreen> {
             )
           else
             IconButton(
-              icon: const Icon(Icons.login),
+              icon: const Icon(Icons.person_outline),
               onPressed: _navigateToLogin,
               tooltip: 'Přihlásit se',
             ),
@@ -449,33 +449,14 @@ class _MainScreenState extends State<MainScreen> {
 
   // Novinky (úplně napravo)
   Widget _buildNewsScreen() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildNewsCard(
-            LocalizationService.isEnglish ? 'New Transfer of the Season' : 'Nový přestup sezóny',
-            LocalizationService.isEnglish 
-              ? 'Star player transfers to Premier League for record fee...'
-              : 'Hvězdný hráč přestupuje do Premier League za rekordní částku...',
-            LocalizationService.isEnglish ? '2 hours ago' : 'před 2 hodinami',
-          ),
-          _buildNewsCard(
-            LocalizationService.isEnglish ? 'Key Player Injury' : 'Zranění klíčového hráče',
-            LocalizationService.isEnglish
-              ? 'Team captain will miss next 3 matches due to injury...'
-              : 'Kapitán týmu bude chybět následující 3 zápasy kvůli zranění...',
-            LocalizationService.isEnglish ? '4 hours ago' : 'před 4 hodinami',
-          ),
-          _buildNewsCard(
-            LocalizationService.isEnglish ? 'Coaching Staff Change' : 'Změna v trenérském štábu',
-            LocalizationService.isEnglish
-              ? 'Club announces appointment of new assistant coach...'
-              : 'Klub oznámil jmenování nového asistenta trenéra...',
-            LocalizationService.isEnglish ? '6 hours ago' : 'před 6 hodinami',
-          ),
-        ],
+    return Center(
+      child: Text(
+        LocalizationService.isEnglish ? 'Coming soon' : 'Již brzy',
+        style: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey,
+        ),
       ),
     );
   }
@@ -730,40 +711,6 @@ class _MainScreenState extends State<MainScreen> {
               child: Text(
                 awayTeam,
                 style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNewsCard(String title, String content, String time) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              content,
-              style: const TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              time,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
               ),
             ),
           ],
