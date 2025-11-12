@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/localization_service.dart';
-import '../services/theme_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,7 +10,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
   String _selectedLanguage = 'Čeština';
   
   final List<String> _languages = ['Čeština', 'English'];
@@ -23,10 +21,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    // Načíst uložený jazyk a téma
+    // Načíst uložený jazyk
     setState(() {
       _selectedLanguage = LocalizationService.currentLanguage;
-      _darkModeEnabled = ThemeService().isDarkMode;
     });
   }
 
@@ -34,29 +31,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _notificationsEnabled = value;
     });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(value ? LocalizationService.translate('notifications_on') : LocalizationService.translate('notifications_off')),
-        backgroundColor: value ? Colors.green : Colors.orange,
-      ),
-    );
-  }
-
-  void _saveDarkMode(bool value) {
-    setState(() {
-      _darkModeEnabled = value;
-    });
-    
-    // Aplikovat téma okamžitě
-    ThemeService().setDarkMode(value);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(value ? LocalizationService.translate('dark_mode_on') : LocalizationService.translate('light_mode_on')),
-        backgroundColor: value ? Colors.grey[800] : Colors.blue,
-      ),
-    );
   }
 
   void _saveLanguage(String language) {
@@ -65,13 +39,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
     
     LocalizationService.setLanguage(language);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${LocalizationService.translate('language_changed')} $language'),
-        backgroundColor: Colors.blue,
-      ),
-    );
     
     // Restartovat settings screen pro aplikování změn
     Navigator.of(context).pushReplacement(
@@ -98,15 +65,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: Switch(
               value: _notificationsEnabled,
               onChanged: _saveNotifications,
-            ),
-          ),
-          _buildSettingsTile(
-            icon: Icons.dark_mode,
-            title: LocalizationService.translate('dark_mode'),
-            subtitle: LocalizationService.translate('dark_mode_subtitle'),
-            trailing: Switch(
-              value: _darkModeEnabled,
-              onChanged: _saveDarkMode,
             ),
           ),
           _buildSettingsTile(
@@ -248,12 +206,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () {
                 if (feedbackController.text.trim().isNotEmpty) {
                   Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(LocalizationService.translate('thanks_feedback')),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
                   // TODO: Odeslat zpětnou vazbu na server
                 }
               },

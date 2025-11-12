@@ -218,36 +218,31 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF1E1E1E)
+          : const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: Text(LocalizationService.translate('login')),
         backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              // Logo nebo název aplikace
-              const SizedBox(height: 32),
-              const Icon(
-                Icons.sports_soccer,
-                size: 80,
-                color: Color(0xFF3E5F44),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Strike!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF3E5F44),
+              // Logo
+              Center(
+                child: Image.asset(
+                  'assets/images/logo_a_text.png',
+                  width: 350,
+                  height: 180,
+                  fit: BoxFit.contain,
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 16),
 
               // Email pole
               TextFormField(
@@ -326,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       )
                     : const Text('Přihlásit se', style: TextStyle(fontSize: 16)),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               // Oddělovač
               const Row(
@@ -339,7 +334,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Expanded(child: Divider()),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               // Přihlášení přes Google
               OutlinedButton.icon(
@@ -350,7 +345,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: const Icon(Icons.account_circle, color: Colors.red),
                 label: const Text('Pokračovat s Google'),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               // Přihlášení přes Apple (pouze na iOS/macOS)
               if (Platform.isIOS || Platform.isMacOS)

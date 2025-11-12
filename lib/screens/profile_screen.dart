@@ -53,26 +53,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             const Padding(
               padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Text(
-                    'Vyberte zdroj profilového obrázku',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Poznámka: Pro testování je použita simulace.\nVe finální verzi se otevře skutečná galerie/kamera.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+              child: Text(
+                'Vyberte zdroj profilového obrázku',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library, color: Color(0xFF3E5F44)),
               title: const Text('Vybrat z galerie'),
-              subtitle: const Text('Otevře galerii s vašimi obrázky'),
               onTap: () {
                 Navigator.pop(context);
                 _pickImageFromGallery();
@@ -81,7 +70,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Color(0xFF3E5F44)),
               title: const Text('Pořídit fotku'),
-              subtitle: const Text('Otevře kameru pro pořízení nové fotky'),
               onTap: () {
                 Navigator.pop(context);
                 _takePhoto();
@@ -91,7 +79,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
                 title: const Text('Odstranit fotku', style: TextStyle(color: Colors.red)),
-                subtitle: const Text('Smazat současný profilový obrázek'),
                 onTap: () {
                   Navigator.pop(context);
                   _removeProfileImage();
@@ -105,15 +92,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }  Future<void> _pickImageFromGallery() async {
     setState(() => _isLoading = true);
     try {
-      _showSuccessMessage('Otevírám galerii...');
-      
       // Simulace načítání galerie
       await Future.delayed(const Duration(milliseconds: 1000));
       
       // 70% šance že uživatel zruší výběr (realistické)
       final random = DateTime.now().millisecondsSinceEpoch % 10;
       if (random < 7) {
-        _showErrorMessage('Výběr z galerie byl zrušen');
         return;
       }
       
@@ -123,10 +107,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _profileImagePath = imagePath;
       });
       await SessionManager().updateUserData(profileImagePath: imagePath);
-      _showSuccessMessage('✅ Obrázek z galerie byl nastaven');
       
     } catch (e) {
-      _showErrorMessage('Chyba při načítání z galerie: ${e.toString()}');
+      // Chyba při načítání
     } finally {
       setState(() => _isLoading = false);
     }
@@ -135,15 +118,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _takePhoto() async {
     setState(() => _isLoading = true);
     try {
-      _showSuccessMessage('Otevírám kameru...');
-      
       // Simulace focení
       await Future.delayed(const Duration(milliseconds: 1500));
       
       // 60% šance že uživatel zruší focení
       final random = DateTime.now().millisecondsSinceEpoch % 10;
       if (random < 6) {
-        _showErrorMessage('Focení bylo zrušeno');
         return;
       }
       
@@ -153,10 +133,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _profileImagePath = imagePath;
       });
       await SessionManager().updateUserData(profileImagePath: imagePath);
-      _showSuccessMessage('✅ Fotka byla pořízena a nastavena');
       
     } catch (e) {
-      _showErrorMessage('Chyba při focení: ${e.toString()}');
+      // Chyba při focení
     } finally {
       setState(() => _isLoading = false);
     }
@@ -169,9 +148,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _profileImagePath = null;
       });
       await SessionManager().updateUserData(profileImagePath: null);
-      _showSuccessMessage('✅ Profilový obrázek byl odstraněn');
     } catch (e) {
-      _showErrorMessage('Chyba při odstraňování obrázku: ${e.toString()}');
+      // Chyba při odstraňování
     } finally {
       setState(() => _isLoading = false);
     }
@@ -179,7 +157,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (_nicknameController.text.trim().isEmpty) {
-      _showErrorMessage('Přezdívka nemůže být prázdná');
       return;
     }
 
@@ -193,9 +170,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _nickname = _nicknameController.text.trim();
       });
       
-      _showSuccessMessage('Profil byl úspěšně uložen');
     } catch (e) {
-      _showErrorMessage('Chyba při ukládání profilu: ${e.toString()}');
+      // Chyba při ukládání
     } finally {
       setState(() => _isLoading = false);
     }
@@ -217,15 +193,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         // Vrátit se zpět na main screen a obnovit jeho stav
         Navigator.of(context).pop(true); // Vrátí true pro indikaci změny auth stavu
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Úspěšně odhlášen'),
-            backgroundColor: Colors.green,
-          ),
-        );
       }
     } catch (e) {
-      _showErrorMessage('Chyba při odhlašování: ${e.toString()}');
+      // Chyba při odhlašování
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -398,19 +368,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Uložit profil
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
+                  child: FilledButton(
                     onPressed: _isLoading ? null : _saveProfile,
-                    icon: _isLoading 
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(Icons.save),
-                    label: Text(_isLoading 
+                    child: Text(_isLoading 
                       ? (LocalizationService.isEnglish ? 'Saving...' : 'Ukládám...')
                       : LocalizationService.translate('save_changes')),
                   ),
@@ -421,14 +381,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Odhlásit se
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton.icon(
+                  child: OutlinedButton(
                     onPressed: _isLoading ? null : _logout,
-                    icon: const Icon(Icons.logout),
-                    label: Text(LocalizationService.translate('logout')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
                     ),
+                    child: Text(LocalizationService.translate('logout')),
                   ),
                 ),
               ],

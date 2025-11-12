@@ -122,14 +122,8 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       if (_favoriteTeams.contains(teamName)) {
         _favoriteTeams.remove(teamName);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$teamName odebrán z oblíbených')),
-        );
       } else {
         _favoriteTeams.add(teamName);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$teamName přidán do oblíbených')),
-        );
       }
     });
   }
@@ -138,8 +132,8 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Strike!'),
-        centerTitle: false,
+        title: Image.asset('assets/images/text.png', height: 70),
+        centerTitle: true,
         backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
         leading: IconButton(
@@ -272,7 +266,6 @@ class _MainScreenState extends State<MainScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader(LocalizationService.translate('favorite_teams')),
           if (_isLoggedIn) ...[
             if (_favoriteTeams.isNotEmpty) ...[
               ..._favoriteTeams.map((teamName) {
@@ -333,7 +326,6 @@ class _MainScreenState extends State<MainScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader(LocalizationService.translate('all_competitions')),
           ..._competitions.map((competition) => _buildCompetitionCard(competition)),
         ],
       ),
@@ -462,7 +454,6 @@ class _MainScreenState extends State<MainScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader(LocalizationService.translate('latest_news')),
           _buildNewsCard(
             LocalizationService.isEnglish ? 'New Transfer of the Season' : 'Nový přestup sezóny',
             LocalizationService.isEnglish 

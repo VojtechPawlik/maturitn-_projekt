@@ -78,6 +78,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(
         title: const Text('Registrace'),
         centerTitle: true,
+        backgroundColor: const Color(0xFF3E5F44),
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -93,21 +95,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 'Vytvořte si účet',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0A84FF),
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Vyplňte údaje pro vytvoření nového účtu',
+                'Začněte sledovat své oblíbené týmy',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.grey,
                   fontSize: 16,
+                  color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
 
               // Jméno
               TextFormField(

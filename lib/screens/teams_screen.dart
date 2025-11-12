@@ -109,18 +109,6 @@ class _TeamsScreenState extends State<TeamsScreen> {
     
     // Uložit do SharedPreferences
     _saveFavorites();
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          favoriteTeams.contains(teamName)
-              ? '$teamName přidán do oblíbených ❤️'
-              : '$teamName odebrán z oblíbených',
-        ),
-        duration: const Duration(seconds: 1),
-        backgroundColor: favoriteTeams.contains(teamName) ? Colors.green : Colors.grey,
-      ),
-    );
   }
 
   Future<void> _saveFavorites() async {
@@ -141,17 +129,6 @@ class _TeamsScreenState extends State<TeamsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(LocalizationService.translate('teams')),
-        backgroundColor: const Color(0xFF5E936C),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadTeams,
-          ),
-        ],
-      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : error != null

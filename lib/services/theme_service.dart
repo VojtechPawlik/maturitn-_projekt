@@ -1,26 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Globální téma pro jednoduchost
 ValueNotifier<bool> isDarkModeNotifier = ValueNotifier<bool>(false);
 
-class ThemeService extends ChangeNotifier {
+class ThemeService {
   static final ThemeService _instance = ThemeService._internal();
   factory ThemeService() => _instance;
   ThemeService._internal();
 
   bool _isDarkMode = false;
+  final ValueNotifier<bool> darkModeNotifier = ValueNotifier<bool>(false);
+
   bool get isDarkMode => _isDarkMode;
 
-  void toggleTheme() {
-    _isDarkMode = !_isDarkMode;
-    isDarkModeNotifier.value = _isDarkMode;
-    notifyListeners();
+  Future<void> loadThemePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    _isDarkMode = prefs.getBool('darkMode') ?? false;
+    darkModeNotifier.value = _isDarkMode;
   }
 
-  void setDarkMode(bool isDark) {
-    _isDarkMode = isDark;
-    isDarkModeNotifier.value = isDark;
-    notifyListeners();
+  Future<void> setDarkMode(bool value) async {
+    _isDarkMode = value;
+    darkModeNotifier.value = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('darkMode', value);
   }
 
   // Světlé téma - bílé s šedými stíny a zeleným AppBarem
