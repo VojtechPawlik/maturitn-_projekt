@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'login_screen.dart';
 import 'main_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -17,7 +16,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late Animation<double> _fadeAnimation;
   
   bool _isLoading = true;
-  bool _showContent = false;
 
   @override
   void initState() {
@@ -69,14 +67,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     
     setState(() {
       _isLoading = false;
-      _showContent = true;
     });
-  }
-
-  void _navigateToLogin() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
   }
 
   void _startApp() {
@@ -96,21 +87,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF3E5F44), // Zelená místo modré
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          if (_showContent)
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: IconButton(
-                icon: const Icon(Icons.login, color: Colors.white, size: 28),
-                onPressed: _navigateToLogin,
-                tooltip: 'Přihlásit se',
-              ),
-            ),
-        ],
-      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -124,59 +100,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 builder: (context, child) {
                   return Transform.scale(
                     scale: _logoAnimation.value,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                    color: const Color(0xFF5E936C), // Světlejší zelená
-                    borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.sports_soccer,
-                        size: 60,
-                        color: Colors.white,
-                      ),
+                    child: Image.asset(
+                      'assets/images/logo_a_text.png',
+                      width: 500,
+                      height: 300,
+                      fit: BoxFit.contain,
                     ),
                   );
                 },
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Název aplikace
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: const Text(
-                  'Strike!',
-                  style: TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Podtitul
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: const Text(
-                  'Fotbalový výsledkový servis',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
               ),
               
               const SizedBox(height: 48),
