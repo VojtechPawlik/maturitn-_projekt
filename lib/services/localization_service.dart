@@ -35,8 +35,6 @@ class LocalizationService {
     'general': {'Čeština': 'Obecné', 'English': 'General'},
     'notifications': {'Čeština': 'Oznámení', 'English': 'Notifications'},
     'notifications_subtitle': {'Čeština': 'Povolit push notifikace', 'English': 'Enable push notifications'},
-    'dark_mode': {'Čeština': 'Tmavý režim', 'English': 'Dark Mode'},
-    'dark_mode_subtitle': {'Čeština': 'Přepnout na tmavé téma', 'English': 'Switch to dark theme'},
     'language': {'Čeština': 'Jazyk', 'English': 'Language'},
     'about_app': {'Čeština': 'O aplikaci', 'English': 'About App'},
     'app_version': {'Čeština': 'Verze aplikace', 'English': 'App Version'},
@@ -61,26 +59,6 @@ class LocalizationService {
     'dark_mode_on': {'Čeština': 'Tmavý režim zapnut', 'English': 'Dark mode enabled'},
     'light_mode_on': {'Čeština': 'Světlý režim zapnut', 'English': 'Light mode enabled'},
     'language_changed': {'Čeština': 'Jazyk změněn na', 'English': 'Language changed to'},
-    
-    // Dialogy
-    'restart_app': {'Čeština': 'Restart aplikace', 'English': 'Restart App'},
-    'restart_message': {'Čeština': 'Pro použití nového tématu je potřeba restartovat aplikaci.', 'English': 'App restart is required to apply the new theme.'},
-    'ok': {'Čeština': 'OK', 'English': 'OK'},
-    'select_language': {'Čeština': 'Vyberte jazyk', 'English': 'Select Language'},
-    
-    // Týmy
-    'search_team': {'Čeština': 'Vyhledat tým...', 'English': 'Search team...'},
-    'no_teams_found': {'Čeština': 'Žádné týmy nenalezeny', 'English': 'No teams found'},
-    'all': {'Čeština': 'Všechny', 'English': 'All'},
-    'information': {'Čeština': 'Informace', 'English': 'Information'},
-    'squad': {'Čeština': 'Soupiska', 'English': 'Squad'},
-    'team_name': {'Čeština': 'Název týmu', 'English': 'Team Name'},
-    'league': {'Čeština': 'Liga', 'English': 'League'},
-    'season': {'Čeština': 'Sezona', 'English': 'Season'},
-    'stadium': {'Čeština': 'Stadion', 'English': 'Stadium'},
-    'city': {'Čeština': 'Město', 'English': 'City'},
-    'country': {'Čeština': 'Země', 'English': 'Country'},
-    'squad_later': {'Čeština': 'Soupiska bude přidána později', 'English': 'Squad will be added later'},
     
     // Chybové zprávy
     'error': {'Čeština': 'Chyba', 'English': 'Error'},
