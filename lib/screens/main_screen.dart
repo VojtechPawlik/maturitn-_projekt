@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/session_manager.dart';
 import '../services/firestore_service.dart';
+import '../services/api_football_service.dart';
+import '../services/auto_update_service.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
-import 'champions_league_screen.dart';
-import 'premier_league_screen.dart';
-import 'serie_a_screen.dart';
-import 'la_liga_screen.dart';
-import 'ligue1_screen.dart';
-import 'europa_league_screen.dart';
-import 'bundesliga_screen.dart';
 import 'teams_screen.dart';
 import 'settings_screen.dart';
 import 'standings_screen.dart';
+import 'team_detail_screen.dart';
 import '../services/localization_service.dart';
 
 
@@ -29,10 +26,19 @@ class _MainScreenState extends State<MainScreen> {
   final ScrollController _calendarController = ScrollController();
   Set<String> _favoriteTeams = {};
   final FirestoreService _firestoreService = FirestoreService();
+  final AutoUpdateService _autoUpdateService = AutoUpdateService();
   
   // Seznam dostupných soutěží - načte se z Firebase
   List<Competition> _competitions = [];
   bool _isLoadingLeagues = true;
+  
+  // Zápasy pro všechny dny v kalendáři (5 dní zpět, dnes, 5 dní dopředu)
+  Map<String, List<Match>> _matchesByDate = {};
+  bool _isLoadingMatches = false;
+  
+  // Týmy pro zobrazení oblíbených
+  List<Team> _allTeams = [];
+  bool _isLoadingTeams = false;
   
   bool _isLoggedIn = false;
 
@@ -41,10 +47,119 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _loadLeagues();
     _initializeApp();
+    _loadAllMatchesForCalendar();
+    _loadTeams();
+    _loadFavoriteTeams();
+    _setupAutoUpdate();
     // Vycentrovat kalendář na dnešní datum
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerCalendarOnToday();
     });
+  }
+
+  // Načíst týmy z Firestore
+  Future<void> _loadTeams() async {
+    try {
+      setState(() => _isLoadingTeams = true);
+      final teams = await _firestoreService.getTeams();
+      setState(() {
+        _allTeams = teams;
+        _isLoadingTeams = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingTeams = false);
+    }
+  }
+
+  // Načíst zápasy pro všechny dny v kalendáři (5 dní zpět, dnes, 5 dní dopředu)
+  Future<void> _loadAllMatchesForCalendar() async {
+    setState(() => _isLoadingMatches = true);
+    
+    final now = DateTime.now();
+    final dates = List.generate(11, (index) => now.add(Duration(days: index - 5)));
+    
+    final Map<String, List<Match>> matchesMap = {};
+    
+    for (var date in dates) {
+      try {
+        // Nejdřív zkusit načíst z Firestore
+        var matches = await _firestoreService.getFixtures(date);
+        
+        // Filtrovat pouze povolené ligy
+        matches = _filterMatchesByLeague(matches);
+        
+        // Pokud nejsou data, načíst z API
+        if (matches.isEmpty) {
+          final apiService = ApiFootballService();
+          await apiService.initializeApiKey();
+          var allMatches = await apiService.getFixtures(date: date);
+          
+          // Filtrovat pouze povolené ligy
+          matches = _filterMatchesByLeague(allMatches);
+          
+          // Uložit do Firestore pouze filtrované zápasy
+          if (matches.isNotEmpty) {
+            await _firestoreService.saveFixtures(date: date, matches: matches);
+          }
+        }
+        
+        final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        matchesMap[dateKey] = matches;
+      } catch (e) {
+        print('Chyba při načítání zápasů pro ${date.toString()}: $e');
+      }
+    }
+    
+    setState(() {
+      _matchesByDate = matchesMap;
+      _isLoadingMatches = false;
+    });
+  }
+
+  // Povolené ligy - pouze top 5 lig a evropské soutěže
+  static const Set<int> _allowedLeagueIds = {
+    39,   // Premier League (Anglická)
+    140,  // La Liga (Španělská)
+    135,  // Serie A (Italská)
+    78,   // Bundesliga (Německá)
+    61,   // Ligue 1 (Francouzská)
+    2,    // Champions League (Liga mistrů)
+    3,    // Europa League (Evropská liga)
+  };
+
+  void _setupAutoUpdate() {
+    // Přidat ligy k automatické aktualizaci
+    // Pouze hlavní evropské ligy
+    // Pro free plán API-Football použijte sezónu 2023 (2024 není dostupná)
+    // Pokud máte placený plán, změňte na 2024
+    final currentSeason = 2023; // Změňte na 2024 pokud máte placený plán
+    
+    final Map<String, Map<String, int>> leagueConfigs = {
+      'premier_league': {'apiLeagueId': 39, 'season': currentSeason},      // Anglická Premier League
+      'la_liga': {'apiLeagueId': 140, 'season': currentSeason},            // Španělská La Liga
+      'serie_a': {'apiLeagueId': 135, 'season': currentSeason},            // Italská Serie A
+      'bundesliga': {'apiLeagueId': 78, 'season': currentSeason},          // Německá Bundesliga
+      'ligue_1': {'apiLeagueId': 61, 'season': currentSeason},             // Francouzská Ligue 1
+      'champions_league': {'apiLeagueId': 2, 'season': currentSeason},    // Liga mistrů
+      'europa_league': {'apiLeagueId': 3, 'season': currentSeason},        // Evropská liga
+    };
+
+    for (var entry in leagueConfigs.entries) {
+      _autoUpdateService.addLeague(
+        leagueId: entry.key,
+        apiLeagueId: entry.value['apiLeagueId']!,
+        season: entry.value['season']!,
+      );
+    }
+
+    // Spustit automatickou aktualizaci každých 6 hodin (360 minut)
+    _autoUpdateService.startAutoUpdate(intervalMinutes: 360);
+  }
+
+
+  // Filtrovat zápasy podle povolených lig
+  List<Match> _filterMatchesByLeague(List<Match> matches) {
+    return matches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
   }
 
   Future<void> _loadLeagues() async {
@@ -125,6 +240,29 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  // Načíst oblíbené týmy z SharedPreferences
+  Future<void> _loadFavoriteTeams() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final favoriteTeamsList = prefs.getStringList('favorite_teams') ?? [];
+      setState(() {
+        _favoriteTeams = favoriteTeamsList.toSet();
+      });
+    } catch (e) {
+      // Chyba při načítání - ignorovat
+    }
+  }
+
+  // Uložit oblíbené týmy do SharedPreferences
+  Future<void> _saveFavoriteTeams() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('favorite_teams', _favoriteTeams.toList());
+    } catch (e) {
+      // Chyba při ukládání - ignorovat
+    }
+  }
+
   void _toggleFavoriteTeam(String teamName) {
     setState(() {
       if (_favoriteTeams.contains(teamName)) {
@@ -133,6 +271,7 @@ class _MainScreenState extends State<MainScreen> {
         _favoriteTeams.add(teamName);
       }
     });
+    _saveFavoriteTeams();
   }
 
   @override
@@ -229,8 +368,9 @@ class _MainScreenState extends State<MainScreen> {
               setState(() {
                 _favoriteTeams = newFavorites;
               });
+              _saveFavoriteTeams();
             },
-          ), // Použití samostatné TeamsScreen z Google Sheets
+          ),
           _buildNewsScreen(),
         ],
       ),
@@ -268,61 +408,126 @@ class _MainScreenState extends State<MainScreen> {
 
   // Oblíbené týmy (úplně vlevo)
   Widget _buildFavoriteTeamsScreen() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_isLoggedIn) ...[
-            if (_favoriteTeams.isNotEmpty) ...[
-              ..._favoriteTeams.map((teamName) {
-                // Použít základní zobrazení týmu
-                return _buildTeamCard(teamName, '⚽', LocalizationService.translate('league'), isFavorite: true);
-              }).toList(),
-            ] else ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.favorite_border, size: 48, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text(
-                        LocalizationService.translate('no_favorite_teams'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        LocalizationService.translate('add_favorites_hint'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
-                    ],
-                  ),
+    if (!_isLoggedIn) {
+      return Center(
+        child: Card(
+          margin: const EdgeInsets.all(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.favorite_border, size: 48, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(
+                  LocalizationService.translate('login_for_favorites'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey),
                 ),
-              ),
-            ],
-          ] else ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    const Icon(Icons.favorite_border, size: 48, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    Text(
-                      LocalizationService.translate('login_for_favorites'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ),
+          ),
+        ),
+      );
+    }
+
+    if (_isLoadingTeams) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Načítám týmy...'),
           ],
-        ],
-      ),
+        ),
+      );
+    }
+
+    // Filtrovat pouze oblíbené týmy
+    final favoriteTeamsList = _allTeams
+        .where((team) => _favoriteTeams.contains(team.name))
+        .toList();
+
+    if (favoriteTeamsList.isEmpty) {
+      return Center(
+        child: Card(
+          margin: const EdgeInsets.all(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.favorite_border, size: 48, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(
+                  LocalizationService.translate('no_favorite_teams'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  LocalizationService.translate('add_favorites_hint'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: favoriteTeamsList.length,
+      itemBuilder: (context, index) {
+        final team = favoriteTeamsList[index];
+        final isFavorite = _favoriteTeams.contains(team.name);
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: team.logoUrl.startsWith('http')
+                ? Image.network(
+                    team.logoUrl,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.sports_soccer, size: 40);
+                    },
+                  )
+                : const Icon(Icons.sports_soccer, size: 40),
+            title: Text(
+              team.name,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            subtitle: Text(team.league),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite ? Colors.red : Colors.grey,
+                  ),
+                  onPressed: () => _toggleFavoriteTeam(team.name),
+                ),
+                const Icon(Icons.arrow_forward_ios, size: 16),
+              ],
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TeamDetailScreen(team: team),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -407,7 +612,9 @@ class _MainScreenState extends State<MainScreen> {
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: GestureDetector(
-                        onTap: () => setState(() => _selectedDate = date),
+                        onTap: () {
+                          setState(() => _selectedDate = date);
+                        },
                         child: Container(
                           width: 50,
                           decoration: BoxDecoration(
@@ -468,25 +675,16 @@ class _MainScreenState extends State<MainScreen> {
             ],
           ),
         ),
-        // Zápasy pro vybraný den
+        // Zápasy pro všechny dny v kalendáři
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSectionHeader(_getMatchesSectionTitle()),
-                _buildMatchesForDate(_selectedDate),
-              ],
-            ),
+            child: _buildAllMatches(),
           ),
         ),
       ],
     );
   }
-
-  // Týmy (napravo od hlavní) - SMAZÁNO, používá se TeamsScreen
-  // Widget _buildTeamsScreen() - odstraněno
 
   // Novinky (úplně napravo)
   Widget _buildNewsScreen() {
@@ -522,45 +720,155 @@ class _MainScreenState extends State<MainScreen> {
            date1.day == date2.day;
   }
 
-  String _getMatchesSectionTitle() {
-    final now = DateTime.now();
-    if (_isSameDay(_selectedDate, now)) return LocalizationService.translate('todays_matches');
-    if (_selectedDate.isBefore(now)) return LocalizationService.translate('results');
-    return LocalizationService.translate('upcoming_matches');
-  }
 
-  Widget _buildMatchesForDate(DateTime date) {
-    final now = DateTime.now();
-    
-    if (_isSameDay(date, now)) {
-      // Dnešní zápasy
-      return Column(
-        children: [
-          _buildMatchCard('Manchester United', 'Liverpool', '15:30', isLive: true),
-          _buildMatchCard('Arsenal', 'Chelsea', '18:00'),
-          _buildMatchCard('Barcelona', 'Real Madrid', '20:45'),
-        ],
-      );
-    } else if (date.isBefore(now)) {
-      // Minulé zápasy - výsledky
-      return Column(
-        children: [
-          _buildMatchCard('PSG', 'Monaco', 'Konec', homeScore: 3, awayScore: 0),
-          _buildMatchCard('Juventus', 'Inter Milan', 'Konec', homeScore: 1, awayScore: 2),
-          _buildMatchCard('Bayern Munich', 'Dortmund', 'Konec', homeScore: 2, awayScore: 1),
-        ],
-      );
-    } else {
-      // Budoucí zápasy
-      return Column(
-        children: [
-          _buildMatchCard('Milan', 'Napoli', '16:00'),
-          _buildMatchCard('Atletico Madrid', 'Sevilla', '19:30'),
-          _buildMatchCard('Lyon', 'Marseille', '21:00'),
-        ],
+  Widget _buildAllMatches() {
+    if (_isLoadingMatches) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: CircularProgressIndicator(),
+        ),
       );
     }
+
+    final now = DateTime.now();
+    final dates = List.generate(11, (index) => now.add(Duration(days: index - 5)));
+    
+    final List<Widget> widgets = [];
+    
+    for (var date in dates) {
+      final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final matches = _matchesByDate[dateKey] ?? [];
+      final isSelected = _isSameDay(date, _selectedDate);
+      
+      // Zobrazit pouze vybraný den nebo všechny dny s zápasy
+      if (isSelected || matches.isNotEmpty) {
+        widgets.add(
+          _buildDateSection(date, matches, isSelected),
+        );
+      }
+    }
+    
+    if (widgets.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                LocalizationService.translate('no_matches'),
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                LocalizationService.translate('no_matches_subtitle'),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
   }
+
+  Widget _buildDateSection(DateTime date, List<Match> matches, bool isSelected) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (matches.isNotEmpty) ...[
+          Padding(
+            padding: EdgeInsets.only(
+              top: isSelected ? 0 : 16,
+              bottom: 8,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  _getFormattedDate(date),
+                  style: TextStyle(
+                    fontSize: isSelected ? 20 : 16,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    color: isSelected ? const Color(0xFF3E5F44) : Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3E5F44).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${matches.length}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF3E5F44),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (matches.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100]?.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey[300]!,
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  _getNoMatchesMessage(date),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          )
+        else
+          ...matches.map((match) => _buildMatchCardFromMatch(match)),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  String _getNoMatchesMessage(DateTime date) {
+    final now = DateTime.now();
+    if (_isSameDay(date, now)) {
+      return LocalizationService.translate('no_matches_today');
+    } else if (_isSameDay(date, now.add(const Duration(days: 1)))) {
+      return LocalizationService.translate('no_matches_tomorrow');
+    }
+    return LocalizationService.translate('no_matches');
+  }
+
 
   Widget _buildCompetitionCard(Competition competition) {
     return Card(
@@ -620,170 +928,173 @@ class _MainScreenState extends State<MainScreen> {
             return;
           }
 
-          // Jinak použij původní navigaci (starý systém)
-          if (competition.id == '7') { // Champions League má ID '7'
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ChampionsLeagueScreen(),
-              ),
-            );
-          } else if (competition.id == '1') { // Premier League má ID '1'
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const PremierLeagueScreen(),
-              ),
-            );
-          } else if (competition.id == '3') { // Serie A má ID '3'
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const SerieAScreen(),
-              ),
-            );
-          } else if (competition.id == '2') { // La Liga má ID '2'
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const LaLigaScreen(),
-              ),
-            );
-          } else if (competition.id == '4') { // Bundesliga má ID '4'
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const BundesligaScreen(),
-              ),
-            );
-          } else if (competition.id == '5') { // Ligue 1 má ID '5'
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Ligue1Screen(),
-              ),
-            );
-          } else if (competition.id == '8') { // Europa League má ID '8'
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const EuropaLeagueScreen(),
-              ),
-            );
-          }
+          // Jinak zobrazit zprávu, že liga není podporována
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${competition.name} není momentálně podporována'),
+            ),
+          );
         },
       ),
     );
   }
 
-  Widget _buildTeamCard(String teamName, String flag, String league, {bool isFavorite = false}) {
-    final isFav = _favoriteTeams.contains(teamName);
+  Widget _buildMatchCardFromMatch(Match match) {
+    final timeStr = _formatMatchTime(match);
+    final isLive = match.isLive;
     
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Text(
-          flag,
-          style: const TextStyle(fontSize: 24),
-        ),
-        title: Text(
-          teamName,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(league),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!isFavorite) // Nezobrazeovat srditko na stránce oblíbených
-              IconButton(
-                icon: Icon(
-                  isFav ? Icons.favorite : Icons.favorite_border,
-                  color: isFav ? Colors.red : Colors.grey,
-                ),
-                onPressed: () => _toggleFavoriteTeam(teamName),
-              ),
-            const Icon(Icons.arrow_forward_ios, size: 16),
-          ],
-        ),
-        onTap: () {
-          // TODO: Navigace na detail týmu
-        },
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMatchCard(String homeTeam, String awayTeam, String time, 
-      {int? homeScore, int? awayScore, bool isLive = false}) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      elevation: isLive ? 4 : 2,
+      color: isLive ? Colors.red.withOpacity(0.05) : null,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              flex: 3,
-              child: Text(
-                homeTeam,
-                style: const TextStyle(fontWeight: FontWeight.w500),
-                textAlign: TextAlign.right,
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Column(
-                children: [
-                  if (homeScore != null && awayScore != null)
-                    Text(
-                      '$homeScore - $awayScore',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  else
-                    const Text('- : -'),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isLive ? Colors.red : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      time,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isLive ? Colors.white : Colors.black87,
-                      ),
-                    ),
+            // Liga a kolo
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (match.leagueLogo.isNotEmpty)
+                  Image.network(
+                    match.leagueLogo,
+                    width: 16,
+                    height: 16,
+                    errorBuilder: (context, error, stackTrace) => const SizedBox(),
                   ),
-                ],
-              ),
+                if (match.leagueLogo.isNotEmpty) const SizedBox(width: 4),
+                Text(
+                  match.leagueName,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              flex: 3,
-              child: Text(
-                awayTeam,
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
+            const SizedBox(height: 8),
+            // Zápas
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          match.homeTeam,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                          textAlign: TextAlign.right,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (match.homeLogo.isNotEmpty)
+                        Image.network(
+                          match.homeLogo,
+                          width: 24,
+                          height: 24,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.sports_soccer, size: 24);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    children: [
+                      if (match.homeScore != null && match.awayScore != null)
+                        Text(
+                          '${match.homeScore} - ${match.awayScore}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isLive ? Colors.red : null,
+                          ),
+                        )
+                      else
+                        const Text('- : -', style: TextStyle(fontSize: 18)),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isLive 
+                              ? Colors.red 
+                              : match.isFinished 
+                                  ? Colors.grey[300] 
+                                  : Colors.green[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          timeStr,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isLive ? Colors.white : Colors.black87,
+                            fontWeight: isLive ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Row(
+                    children: [
+                      if (match.awayLogo.isNotEmpty)
+                        Image.network(
+                          match.awayLogo,
+                          width: 24,
+                          height: 24,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.sports_soccer, size: 24);
+                          },
+                        ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          match.awayTeam,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+            // Místo konání
+            if (match.venue.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                '📍 ${match.venue}${match.city.isNotEmpty ? ', ${match.city}' : ''}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String _formatMatchTime(Match match) {
+    if (match.isLive) {
+      return match.status; // LIVE, HT, 1H, 2H
+    } else if (match.isFinished) {
+      return 'FT';
+    } else {
+      // Budoucí zápas - zobrazit čas
+      final hour = match.date.hour.toString().padLeft(2, '0');
+      final minute = match.date.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    }
   }
 }
 

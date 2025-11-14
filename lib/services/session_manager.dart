@@ -89,25 +89,6 @@ class SessionManager {
     }
   }
 
-  // Uložit do SharedPreferences
-  Future<void> _saveToPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_keyIsLoggedIn, _isLoggedIn);
-      if (_userEmail != null) {
-        await prefs.setString(_keyUserEmail, _userEmail!);
-      }
-      if (_userNickname != null) {
-        await prefs.setString(_keyUserNickname, _userNickname!);
-      }
-      if (_profileImagePath != null) {
-        await prefs.setString(_keyProfileImagePath, _profileImagePath!);
-      }
-    } catch (e) {
-      // Chyba při ukládání - ignorovat
-    }
-  }
-
   // Vymazat SharedPreferences
   Future<void> _clearPreferences() async {
     try {

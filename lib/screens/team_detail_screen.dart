@@ -84,12 +84,56 @@ class TeamDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle('Informace o týmu'),
-                  _buildInfoCard(
-                    icon: Icons.sports_soccer,
-                    title: 'Liga',
-                    value: team.league,
-                  ),
+                  _buildSectionTitle('Základní informace'),
+                  if (team.league.isNotEmpty)
+                    _buildInfoCard(
+                      icon: Icons.emoji_events,
+                      title: 'Liga',
+                      value: team.league,
+                    ),
+                  if (team.country.isNotEmpty)
+                    _buildInfoCard(
+                      icon: Icons.flag,
+                      title: 'Země',
+                      value: team.country,
+                    ),
+                  if (team.season > 0)
+                    _buildInfoCard(
+                      icon: Icons.calendar_today,
+                      title: 'Sezóna',
+                      value: team.season.toString(),
+                    ),
+                  if (team.stadium.isNotEmpty) ...[
+                    _buildSectionTitle('Stadion'),
+                    _buildInfoCard(
+                      icon: Icons.stadium,
+                      title: 'Název stadionu',
+                      value: team.stadium,
+                    ),
+                    if (team.city.isNotEmpty)
+                      _buildInfoCard(
+                        icon: Icons.location_city,
+                        title: 'Město',
+                        value: team.city,
+                      ),
+                    if (team.stadiumCountry.isNotEmpty)
+                      _buildInfoCard(
+                        icon: Icons.public,
+                        title: 'Země stadionu',
+                        value: team.stadiumCountry,
+                      ),
+                  ],
+                  // Zobrazit všechny další fields z Firestore
+                  if (team.additionalFields.isNotEmpty) ...[
+                    _buildSectionTitle('Další informace'),
+                    ...team.additionalFields.entries.map((entry) {
+                      return _buildInfoCard(
+                        icon: _getIconForField(entry.key),
+                        title: _formatFieldName(entry.key),
+                        value: _formatFieldValue(entry.value),
+                      );
+                    }).toList(),
+                  ],
                 ],
               ),
             ),
@@ -166,5 +210,60 @@ class TeamDetailScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Pomocná metoda pro získání ikony podle názvu fieldu
+  IconData _getIconForField(String fieldName) {
+    final lowerName = fieldName.toLowerCase();
+    if (lowerName.contains('email') || lowerName.contains('mail')) {
+      return Icons.email;
+    } else if (lowerName.contains('phone') || lowerName.contains('tel')) {
+      return Icons.phone;
+    } else if (lowerName.contains('web') || lowerName.contains('url') || lowerName.contains('site')) {
+      return Icons.language;
+    } else if (lowerName.contains('address') || lowerName.contains('adresa')) {
+      return Icons.location_on;
+    } else if (lowerName.contains('year') || lowerName.contains('rok')) {
+      return Icons.calendar_today;
+    } else if (lowerName.contains('coach') || lowerName.contains('trener')) {
+      return Icons.person;
+    } else if (lowerName.contains('player') || lowerName.contains('hrac')) {
+      return Icons.people;
+    } else if (lowerName.contains('founded') || lowerName.contains('zaloz')) {
+      return Icons.history;
+    } else if (lowerName.contains('capacity') || lowerName.contains('kapacita')) {
+      return Icons.people_outline;
+    } else {
+      return Icons.info;
+    }
+  }
+
+  // Formátování názvu fieldu pro zobrazení
+  String _formatFieldName(String fieldName) {
+    // Převést snake_case nebo camelCase na čitelnější formát
+    String formatted = fieldName
+        .replaceAll('_', ' ')
+        .replaceAllMapped(RegExp(r'([A-Z])'), (match) => ' ${match.group(1)}')
+        .trim();
+    
+    // První písmeno velké
+    if (formatted.isNotEmpty) {
+      formatted = formatted[0].toUpperCase() + formatted.substring(1);
+    }
+    
+    return formatted;
+  }
+
+  // Formátování hodnoty fieldu pro zobrazení
+  String _formatFieldValue(dynamic value) {
+    if (value == null) return 'N/A';
+    if (value is String) return value;
+    if (value is num) return value.toString();
+    if (value is bool) return value ? 'Ano' : 'Ne';
+    if (value is List) return value.join(', ');
+    if (value is Map) {
+      return value.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+    }
+    return value.toString();
   }
 }

@@ -81,6 +81,10 @@ class LocalizationService {
     'latest_news': {'Čeština': 'Nejnovější zprávy', 'English': 'Latest News'},
     'live': {'Čeština': 'ŽIVĚ', 'English': 'LIVE'},
     'finished': {'Čeština': 'Konec', 'English': 'FT'},
+    'no_matches': {'Čeština': 'V tento den se neodehrály žádné zápasy', 'English': 'No matches played on this day'},
+    'no_matches_today': {'Čeština': 'Dnes se neodehrály žádné zápasy', 'English': 'No matches played today'},
+    'no_matches_tomorrow': {'Čeština': 'Zítra se neodehrají žádné zápasy', 'English': 'No matches scheduled for tomorrow'},
+    'no_matches_subtitle': {'Čeština': 'Zkuste vybrat jiný den nebo obnovit data', 'English': 'Try selecting another day or refresh data'},
     
     // Dny v týdnu
     'monday': {'Čeština': 'Po', 'English': 'Mo'},
