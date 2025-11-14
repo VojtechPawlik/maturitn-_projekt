@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/team.dart';
+import '../services/firestore_service.dart';
 import 'team_detail_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {

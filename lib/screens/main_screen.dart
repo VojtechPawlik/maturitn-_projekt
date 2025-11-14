@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/session_manager.dart';
+import '../services/firestore_service.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'champions_league_screen.dart';
@@ -11,6 +12,7 @@ import 'ligue1_screen.dart';
 import 'europa_league_screen.dart';
 import 'teams_screen.dart';
 import 'settings_screen.dart';
+import 'standings_screen.dart';
 import '../services/localization_service.dart';
 
 
@@ -26,31 +28,43 @@ class _MainScreenState extends State<MainScreen> {
   DateTime _selectedDate = DateTime.now();
   final ScrollController _calendarController = ScrollController();
   Set<String> _favoriteTeams = {};
-
+  final FirestoreService _firestoreService = FirestoreService();
   
-  // Seznam dostupných soutěží
-  final List<Competition> _competitions = [
-    Competition(id: '1', name: 'Premier League', country: 'Anglie', logo: '🏴'),
-    Competition(id: '2', name: 'La Liga', country: 'Španělsko', logo: '🇪🇸'),
-    Competition(id: '3', name: 'Serie A', country: 'Itálie', logo: '🇮🇹'),
-    Competition(id: '4', name: 'Bundesliga', country: 'Německo', logo: '🇩🇪'),
-    Competition(id: '5', name: 'Ligue 1', country: 'Francie', logo: '🇫🇷'),
-    Competition(id: '7', name: 'Champions League', country: 'Evropa', logo: '🏆'),
-    Competition(id: '8', name: 'Europa League', country: 'Evropa', logo: '🥈'),
-  ];
+  // Seznam dostupných soutěží - načte se z Firebase
+  List<Competition> _competitions = [];
+  bool _isLoadingLeagues = true;
   
-  Competition? _selectedCompetition;
   bool _isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedCompetition = _competitions.first;
+    _loadLeagues();
     _initializeApp();
     // Vycentrovat kalendář na dnešní datum
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerCalendarOnToday();
     });
+  }
+
+  Future<void> _loadLeagues() async {
+    try {
+      final leagues = await _firestoreService.getLeagues();
+      
+      setState(() {
+        _competitions = leagues.map((league) => Competition(
+          id: league.id,
+          name: league.name,
+          country: league.country,
+          logo: league.logo,
+        )).toList();
+        _isLoadingLeagues = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingLeagues = false;
+      });
+    }
   }
 
   Future<void> _initializeApp() async {
@@ -92,13 +106,6 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _isLoggedIn = SessionManager().isLoggedIn;
     });
-  }
-
-  void _selectCompetition(Competition competition) {
-    setState(() {
-      _selectedCompetition = competition;
-    });
-    Navigator.of(context).pop(); // Zavřít drawer
   }
 
   void _navigateToLogin() {
@@ -321,6 +328,40 @@ class _MainScreenState extends State<MainScreen> {
 
   // Soutěže (vlevo od hlavní)
   Widget _buildCompetitionsScreen() {
+    if (_isLoadingLeagues) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Načítám ligy...'),
+          ],
+        ),
+      );
+    }
+    
+    if (_competitions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'Žádné ligy nenalezeny',
+              style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: _loadLeagues,
+              child: const Text('Zkusit znovu'),
+            ),
+          ],
+        ),
+      );
+    }
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -522,34 +563,64 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildCompetitionCard(Competition competition) {
-    final isSelected = competition.id == _selectedCompetition?.id;
-    
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: isSelected ? const Color(0xFF3E5F44).withOpacity(0.1) : null,
+      elevation: 2,
       child: ListTile(
-        leading: Text(
-          competition.logo,
-          style: const TextStyle(fontSize: 24),
-        ),
+        leading: competition.logo.startsWith('http')
+            ? Image.network(
+                competition.logo,
+                width: 40,
+                height: 40,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(Icons.sports_soccer, size: 40);
+                },
+              )
+            : Text(
+                competition.logo,
+                style: const TextStyle(fontSize: 24),
+              ),
         title: Text(
           competition.name,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? const Color(0xFF3E5F44) : null,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
           ),
         ),
-        subtitle: Text(competition.country),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isSelected) const Icon(Icons.check, color: Color(0xFF3E5F44)),
-            const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward_ios, size: 16),
-          ],
+        subtitle: Text(
+          competition.country,
+          style: const TextStyle(color: Colors.black54),
         ),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
-          // Pokud je to Champions League, otevři obrazovku s tabulkou
+          // Mapa ID lig na jejich API ID
+          final Map<String, int> leagueApiIds = {
+            'premier_league': 39,
+            'la_liga': 140,
+            'serie_a': 135,
+            'bundesliga': 78,
+            'ligue_1': 61,
+            'champions_league': 2,
+            'europa_league': 3,
+          };
+
+          // Pokud liga má API ID, otevři novou obrazovku s tabulkou
+          if (leagueApiIds.containsKey(competition.id)) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => StandingsScreen(
+                  leagueId: competition.id,
+                  leagueName: competition.name,
+                  apiLeagueId: leagueApiIds[competition.id]!,
+                ),
+              ),
+            );
+            return;
+          }
+
+          // Jinak použij původní navigaci (starý systém)
           if (competition.id == '7') { // Champions League má ID '7'
             Navigator.push(
               context,
@@ -599,15 +670,11 @@ class _MainScreenState extends State<MainScreen> {
                 builder: (context) => const EuropaLeagueScreen(),
               ),
             );
-          } else {
-            _selectCompetition(competition);
           }
         },
       ),
     );
   }
-
-
 
   Widget _buildTeamCard(String teamName, String flag, String league, {bool isFavorite = false}) {
     final isFav = _favoriteTeams.contains(teamName);
