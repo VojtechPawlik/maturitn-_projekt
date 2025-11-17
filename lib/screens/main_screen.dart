@@ -130,9 +130,8 @@ class _MainScreenState extends State<MainScreen> {
   void _setupAutoUpdate() {
     // Přidat ligy k automatické aktualizaci
     // Pouze hlavní evropské ligy
-    // Pro free plán API-Football použijte sezónu 2023 (2024 není dostupná)
-    // Pokud máte placený plán, změňte na 2024
-    final currentSeason = 2023; // Změňte na 2024 pokud máte placený plán
+    // Aktuální sezóna
+    final currentSeason = 2024;
     
     final Map<String, Map<String, int>> leagueConfigs = {
       'premier_league': {'apiLeagueId': 39, 'season': currentSeason},      // Anglická Premier League

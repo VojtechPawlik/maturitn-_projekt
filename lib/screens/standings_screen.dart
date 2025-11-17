@@ -51,8 +51,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
     setState(() => _isLoading = true);
     
     try {
-      // Pro free plán použijte sezónu 2023, pro placený 2024
-      final currentSeason = 2023; // Změňte na 2024 pokud máte placený plán
+      // Aktuální sezóna
+      final currentSeason = 2024;
       
       // Načíst z Firebase
       final standings = await _firestoreService.getStandings(
@@ -68,10 +68,15 @@ class _StandingsScreenState extends State<StandingsScreen> {
       // Pokud nejsou data, načti z API
       if (standings.isEmpty) {
         await _refreshStandings();
+      } else {
+        // Pokud data existují, aktualizovat na pozadí (bez zobrazení loading)
+        _refreshStandings(silent: true);
       }
     } catch (e) {
       setState(() => _isLoading = false);
       print('❌ Chyba při načítání tabulky: $e');
+      // Zkusit načíst z API jako fallback
+      await _refreshStandings();
     }
   }
 
@@ -81,8 +86,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
     }
     
     try {
-      // Pro free plán použijte sezónu 2023, pro placený 2024
-      final currentSeason = 2023; // Změňte na 2024 pokud máte placený plán
+      // Aktuální sezóna
+      final currentSeason = 2024;
       
       // Načíst nová data z API a uložit do Firebase
       await _firestoreService.fetchAndSaveStandings(
@@ -106,6 +111,12 @@ class _StandingsScreenState extends State<StandingsScreen> {
         });
 
         if (!silent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Tabulka aktualizována!'),
+              duration: Duration(seconds: 2),
+            ),
+          );
           print('✅ Tabulka aktualizována!');
         }
       }
@@ -119,6 +130,19 @@ class _StandingsScreenState extends State<StandingsScreen> {
         
         // Logovat chybu do konzole
         print('❌ Chyba při aktualizaci tabulky: $e');
+        
+        if (!silent) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Chyba při aktualizaci: ${e.toString()}'),
+              duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'Zkusit znovu',
+                onPressed: () => _refreshStandings(),
+              ),
+            ),
+          );
+        }
       }
     }
   }
@@ -167,113 +191,162 @@ class _StandingsScreenState extends State<StandingsScreen> {
                 )
               : SingleChildScrollView(
                   child: Column(
-                    children: [
-                      // Tabulka
-                      DataTable(
-                        columnSpacing: 16,
-                        headingRowColor: MaterialStateProperty.all(
-                          const Color(0xFF3E5F44).withOpacity(0.1),
-                        ),
-                        columns: const [
-                          DataColumn(label: Text('#', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Tým', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Z', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('V', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('R', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('P', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Skóre', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('B', style: TextStyle(fontWeight: FontWeight.bold))),
-                        ],
-                        rows: _standings.map((team) {
-                          return DataRow(
-                            cells: [
-                              DataCell(
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: team.position <= 4
-                                        ? Colors.green.withOpacity(0.2)
-                                        : team.position >= 18
-                                            ? Colors.red.withOpacity(0.2)
-                                            : null,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    team.position.toString(),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: team.position <= 4
-                                          ? Colors.green.shade700
-                                          : team.position >= 18
-                                              ? Colors.red.shade700
-                                              : null,
-                                    ),
-                                  ),
+                        children: [
+                          Table(
+                        columnWidths: {
+                          0: FixedColumnWidth(40),  // #
+                          1: FlexColumnWidth(3.0),  // Tým - flexibilní
+                          2: FixedColumnWidth(35),  // Z
+                          3: FixedColumnWidth(60),  // G
+                          4: FixedColumnWidth(40),  // B
+                        },
+                        children: [
+                          // Header row
+                          TableRow(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3E5F44).withOpacity(0.1),
+                            ),
+                            children: const [
+                              TableCell(
+                                child: Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text('#', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                                 ),
                               ),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    Image.network(
-                                      team.teamLogo,
-                                      width: 20,
-                                      height: 20,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return const Icon(Icons.sports_soccer, size: 20);
-                                      },
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Flexible(
-                                      child: Text(
-                                        team.teamName,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
+                              TableCell(
+                                child: Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text('Tým', style: TextStyle(fontWeight: FontWeight.bold)),
                                 ),
                               ),
-                              DataCell(Text(team.played.toString())),
-                              DataCell(Text(team.won.toString())),
-                              DataCell(Text(team.drawn.toString())),
-                              DataCell(Text(team.lost.toString())),
-                              DataCell(Text('${team.goalsFor}:${team.goalsAgainst}')),
-                              DataCell(
-                                Text(
-                                  team.points.toString(),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
+                              TableCell(
+                                child: Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text('Z', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                                ),
+                              ),
+                              TableCell(
+                                child: Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text('G', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                                ),
+                              ),
+                              TableCell(
+                                child: Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text('B', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                                 ),
                               ),
                             ],
-                          );
-                        }).toList(),
+                          ),
+                          // Data rows
+                          ..._standings.map((team) {
+                            return TableRow(
+                              children: [
+                                TableCell(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: team.position <= 4
+                                          ? Colors.green.withOpacity(0.2)
+                                          : team.position >= 18
+                                              ? Colors.red.withOpacity(0.2)
+                                              : null,
+                                    ),
+                                    child: Text(
+                                      team.position.toString(),
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: team.position <= 4
+                                            ? Colors.green.shade700
+                                            : team.position >= 18
+                                                ? Colors.red.shade700
+                                                : null,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                TableCell(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      children: [
+                                        Image.network(
+                                          team.teamLogo,
+                                          width: 20,
+                                          height: 20,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return const Icon(Icons.sports_soccer, size: 20);
+                                          },
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            team.teamName,
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                            style: TextStyle(
+                                              fontSize: team.teamName.length > 20 ? 11 : 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                TableCell(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Text(
+                                      team.played.toString(),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                                TableCell(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                                    child: Text(
+                                      '${team.goalsFor}:${team.goalsAgainst}',
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.visible,
+                                    ),
+                                  ),
+                                ),
+                                TableCell(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Text(
+                                      team.points.toString(),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      // Legenda
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Legenda:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                          const SizedBox(height: 16),
+                          // Legenda
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLegendItem(Colors.green, '1-4: Champions League'),
+                                _buildLegendItem(Colors.red, '18-20: Sestup'),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            _buildLegendItem(Colors.green, '1-4: Champions League'),
-                            _buildLegendItem(Colors.red, '18-20: Sestup'),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Z = Zápasy, V = Výhry, R = Remízy, P = Prohry, B = Body',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
                 ),
     );
   }

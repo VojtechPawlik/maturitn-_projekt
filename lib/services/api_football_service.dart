@@ -269,6 +269,72 @@ class ApiFootballService {
       return [];
     }
   }
+
+  // Načíst týmy z ligy s detailními informacemi
+  Future<List<Map<String, dynamic>>> getTeamsFromLeague({
+    required int leagueId,
+    required int season,
+  }) async {
+    if (_apiKey == null) {
+      await initializeApiKey();
+    }
+
+    try {
+      // Použijeme teams endpoint pro detailní informace o týmech
+      final url = '$_baseUrl/teams?league=$leagueId&season=$season';
+      print('🌐 Načítám týmy z ligy $leagueId...');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'x-rapidapi-key': _apiKey ?? '',
+          'x-rapidapi-host': 'v3.football.api-sports.io',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['errors'] != null && data['errors'].isNotEmpty) {
+          final errorMsg = data['errors'].values.first.toString();
+          if (errorMsg.contains('Free plans') && errorMsg.contains('season') && season == 2024) {
+            print('🔄 Zkouším sezónu 2023 místo 2024...');
+            return await getTeamsFromLeague(leagueId: leagueId, season: 2023);
+          }
+          throw Exception('API chyba: $errorMsg');
+        }
+
+        if (data['response'] == null || data['response'].isEmpty) {
+          return [];
+        }
+
+        final List<Map<String, dynamic>> teams = [];
+        final leagueInfo = data['response'][0]['league'];
+        
+        for (var teamData in data['response']) {
+          final team = teamData['team'];
+          final venue = teamData['venue'] ?? {};
+          
+          teams.add({
+            'name': team['name'] ?? '',
+            'logo': team['logo'] ?? '',
+            'country': leagueInfo['country'] ?? '',
+            'league': leagueInfo['name'] ?? '',
+            'stadium': venue['name'] ?? '',
+            'city': venue['city'] ?? '',
+            'stadiumCountry': venue['country'] ?? leagueInfo['country'] ?? '',
+          });
+        }
+        
+        print('✅ Načteno ${teams.length} týmů z ligy $leagueId');
+        return teams;
+      }
+      return [];
+    } catch (e) {
+      print('❌ Chyba při načítání týmů z ligy $leagueId: $e');
+      return [];
+    }
+  }
 }
 
 // Model pro tým v tabulce

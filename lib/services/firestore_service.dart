@@ -69,9 +69,94 @@ class FirestoreService {
       });
       
       print('✅ Tabulka pro $leagueId uložena do Firestore');
+      
+      // Automaticky načíst a uložit týmy z této ligy
+      await _saveTeamsFromStandings(standings, leagueId, apiLeagueId, season);
     } catch (e) {
       print('❌ Chyba při ukládání tabulky pro $leagueId: $e');
       rethrow; // Znovu vyhodit chybu
+    }
+  }
+
+  // Uložit týmy z tabulky do Firestore
+  Future<void> _saveTeamsFromStandings(
+    List<StandingTeam> standings,
+    String leagueId,
+    int apiLeagueId,
+    int season,
+  ) async {
+    try {
+      // Získat název ligy z API
+      final teamsData = await _apiFootballService.getTeamsFromLeague(
+        leagueId: apiLeagueId,
+        season: season,
+      );
+      
+      if (teamsData.isEmpty) {
+        // Pokud se nepodařilo načíst z API, použít data z tabulky
+        for (var standingTeam in standings) {
+          final teamId = '${standingTeam.teamName}_$apiLeagueId'.toLowerCase()
+              .replaceAll(' ', '_')
+              .replaceAll(RegExp(r'[^a-z0-9_]'), '');
+          
+          final existingDoc = await _firestore.collection('teams').doc(teamId).get();
+          
+          if (!existingDoc.exists) {
+            await _firestore.collection('teams').doc(teamId).set({
+              'name': standingTeam.teamName,
+              'league': leagueId,
+              'logo': standingTeam.teamLogo,
+              'logoUrl': standingTeam.teamLogo,
+              'country': '',
+              'stadium': '',
+              'stadiumCountry': '',
+              'city': '',
+              'season': season,
+            }, SetOptions(merge: true));
+          } else {
+            await _firestore.collection('teams').doc(teamId).update({
+              'logo': standingTeam.teamLogo,
+              'logoUrl': standingTeam.teamLogo,
+              'league': leagueId,
+              'season': season,
+            });
+          }
+        }
+      } else {
+        // Použít data z API (mají více informací včetně stadionu a města)
+        for (var teamData in teamsData) {
+          final teamId = '${teamData['name']}_$apiLeagueId'.toLowerCase()
+              .replaceAll(' ', '_')
+              .replaceAll(RegExp(r'[^a-z0-9_]'), '');
+          
+          final existingDoc = await _firestore.collection('teams').doc(teamId).get();
+          
+          final teamMap = {
+            'name': teamData['name'],
+            'league': teamData['league'],
+            'logo': teamData['logo'],
+            'logoUrl': teamData['logo'],
+            'country': teamData['country'] ?? '',
+            'stadium': teamData['stadium'] ?? '',
+            'city': teamData['city'] ?? '',
+            'stadiumCountry': teamData['stadiumCountry'] ?? teamData['country'] ?? '',
+            'season': season,
+          };
+          
+          if (!existingDoc.exists) {
+            await _firestore.collection('teams').doc(teamId).set(teamMap, SetOptions(merge: true));
+            print('  ✅ Přidán tým: ${teamData['name']}');
+          } else {
+            await _firestore.collection('teams').doc(teamId).update(teamMap);
+            print('  🔄 Aktualizován tým: ${teamData['name']}');
+          }
+        }
+      }
+      
+      print('✅ Týmy z ligy $leagueId uloženy do Firestore');
+    } catch (e) {
+      print('⚠️ Chyba při ukládání týmů z ligy $leagueId: $e');
+      // Nevyhodit chybu, protože tabulka se už uložila
     }
   }
 
@@ -208,6 +293,76 @@ class FirestoreService {
       // Zápasy se aktualizují samostatně při zobrazení kalendáře
     } catch (e) {
       print('Chyba při automatické aktualizaci: $e');
+    }
+  }
+
+  // Načíst a uložit týmy z top 5 lig do Firestore
+  Future<void> fetchAndSaveTeamsFromTopLeagues() async {
+    try {
+      // Top 5 lig: Premier League, La Liga, Serie A, Bundesliga, Ligue 1
+      final leagues = [
+        {'id': 39, 'name': 'Premier League', 'country': 'England'},
+        {'id': 140, 'name': 'La Liga', 'country': 'Spain'},
+        {'id': 135, 'name': 'Serie A', 'country': 'Italy'},
+        {'id': 78, 'name': 'Bundesliga', 'country': 'Germany'},
+        {'id': 61, 'name': 'Ligue 1', 'country': 'France'},
+      ];
+      
+      final currentSeason = 2023; // Změňte na 2023 pokud máte free plán
+      int totalTeams = 0;
+      
+      for (var league in leagues) {
+        print('📥 Načítám týmy z ${league['name']}...');
+        
+        final teams = await _apiFootballService.getTeamsFromLeague(
+          leagueId: league['id'] as int,
+          season: currentSeason,
+        );
+        
+        for (var teamData in teams) {
+          // Vytvořit unikátní ID z názvu týmu a ligy
+          final teamId = '${teamData['name']}_${league['id']}'.toLowerCase()
+              .replaceAll(' ', '_')
+              .replaceAll(RegExp(r'[^a-z0-9_]'), '');
+          
+          // Zkontrolovat, jestli tým už existuje
+          final existingDoc = await _firestore.collection('teams').doc(teamId).get();
+          
+          if (!existingDoc.exists) {
+            await _firestore.collection('teams').doc(teamId).set({
+              'name': teamData['name'],
+              'league': teamData['league'],
+              'logo': teamData['logo'],
+              'logoUrl': teamData['logo'],
+              'country': teamData['country'],
+              'stadium': '',
+              'stadiumCountry': '',
+              'city': '',
+              'season': currentSeason,
+            }, SetOptions(merge: true));
+            
+            totalTeams++;
+            print('  ✅ Přidán tým: ${teamData['name']}');
+          } else {
+            // Aktualizovat existující tým
+            await _firestore.collection('teams').doc(teamId).update({
+              'logo': teamData['logo'],
+              'logoUrl': teamData['logo'],
+              'league': teamData['league'],
+              'season': currentSeason,
+            });
+            print('  🔄 Aktualizován tým: ${teamData['name']}');
+          }
+        }
+        
+        // Počkat mezi ligami, aby se nepřekročil API limit
+        await Future.delayed(const Duration(seconds: 2));
+      }
+      
+      print('✅ Celkem přidáno/aktualizováno $totalTeams týmů z top 5 lig');
+    } catch (e) {
+      print('❌ Chyba při načítání a ukládání týmů: $e');
+      rethrow;
     }
   }
 
