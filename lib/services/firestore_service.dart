@@ -5,19 +5,29 @@ class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ApiFootballService _apiFootballService = ApiFootballService();
 
-  // Načíst všechny ligy
+  // Načíst všechny ligy (bez Champions League a Europa League)
   Future<List<League>> getLeagues() async {
     try {
       final snapshot = await _firestore.collection('leagues').get();
       
-      return snapshot.docs.map((doc) {
-        return League(
-          id: doc.id,
-          name: doc['name'] ?? '',
-          country: doc['country'] ?? '',
-          logo: doc['logo'] ?? '',
-        );
-      }).toList();
+      return snapshot.docs
+          .where((doc) {
+            final id = doc.id.toLowerCase();
+            final name = (doc['name'] ?? '').toString().toLowerCase();
+            // Vyloučit Champions League a Europa League
+            return !id.contains('champions') && 
+                   !id.contains('europa') &&
+                   !name.contains('champions league') &&
+                   !name.contains('europa league');
+          })
+          .map((doc) {
+            return League(
+              id: doc.id,
+              name: doc['name'] ?? '',
+              country: doc['country'] ?? '',
+              logo: doc['logo'] ?? '',
+            );
+          }).toList();
     } catch (e) {
       return [];
     }
@@ -85,6 +95,13 @@ class FirestoreService {
     int apiLeagueId,
     int season,
   ) async {
+    // Neukládat týmy z Champions League a Europa League
+    final leagueIdLower = leagueId.toLowerCase();
+    if (leagueIdLower.contains('champions') || leagueIdLower.contains('europa')) {
+      print('⚠️ Přeskočeno ukládání týmů z ligy $leagueId (Champions/Europa League)');
+      return;
+    }
+    
     try {
       // Získat název ligy z API
       final teamsData = await _apiFootballService.getTeamsFromLeague(
@@ -211,15 +228,13 @@ class FirestoreService {
     }
   }
 
-  // Povolené ligy - pouze top 5 lig a evropské soutěže
+  // Povolené ligy - pouze top 5 evropských lig
   static const Set<int> _allowedLeagueIds = {
     39,   // Premier League (Anglická)
     140,  // La Liga (Španělská)
     135,  // Serie A (Italská)
     78,   // Bundesliga (Německá)
     61,   // Ligue 1 (Francouzská)
-    2,    // Champions League (Liga mistrů)
-    3,    // Europa League (Evropská liga)
   };
 
   // Načíst zápasy z Firestore pro konkrétní datum
@@ -366,35 +381,70 @@ class FirestoreService {
     }
   }
 
-  // Načíst týmy z Firebase
+  // Načíst týmy z Firebase (pouze z top 5 evropských lig)
   Future<List<Team>> getTeams() async {
     try {
+      // Blacklist - nejprve vyloučit Champions League a Europa League
+      final excludedPatterns = [
+        'champions',
+        'europa',
+        'uefa champions',
+        'uefa europa',
+        'european',
+      ];
+      
+      // Whitelist povolených lig - ID lig i názvy (s mezerami i podtržítky)
+      final allowedLeaguePatterns = [
+        'premier_league',
+        'premier league',
+        'la_liga',
+        'la liga',
+        'serie_a',
+        'serie a',
+        'bundesliga',
+        'ligue_1',
+        'ligue 1',
+      ];
+      
       final snapshot = await _firestore.collection('teams').get();
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        // Vytvořit mapu všech fields kromě základních
-        final Map<String, dynamic> additionalFields = {};
-        final knownFields = {'name', 'league', 'logo', 'logoUrl', 'country', 'stadium', 'stadiumCountry', 'city', 'season'};
-        
-        data.forEach((key, value) {
-          if (!knownFields.contains(key)) {
-            additionalFields[key] = value;
-          }
-        });
-        
-        return Team(
-          id: doc.id,
-          name: data['name'] ?? '',
-          league: data['league'] ?? '',
-          logoUrl: data['logo'] ?? data['logoUrl'] ?? '',
-          country: data['country'] ?? '',
-          stadium: data['stadium'] ?? '',
-          stadiumCountry: data['stadiumCountry'] ?? '',
-          city: data['city'] ?? '',
-          season: data['season'] is int ? data['season'] : (data['season'] is String ? int.tryParse(data['season']) ?? 2024 : 2024),
-          additionalFields: additionalFields,
-        );
-      }).toList();
+      return snapshot.docs
+          .where((doc) {
+            final data = doc.data();
+            final league = (data['league'] ?? '').toString().toLowerCase().trim();
+            
+            // Nejdříve vyloučit Champions League a Europa League
+            if (excludedPatterns.any((excluded) => league.contains(excluded))) {
+              return false;
+            }
+            
+            // Pak povolit pouze týmy z top 5 evropských lig
+            return allowedLeaguePatterns.any((pattern) => league.contains(pattern));
+          })
+          .map((doc) {
+            final data = doc.data();
+            // Vytvořit mapu všech fields kromě základních
+            final Map<String, dynamic> additionalFields = {};
+            final knownFields = {'name', 'league', 'logo', 'logoUrl', 'country', 'stadium', 'stadiumCountry', 'city', 'season'};
+            
+            data.forEach((key, value) {
+              if (!knownFields.contains(key)) {
+                additionalFields[key] = value;
+              }
+            });
+            
+            return Team(
+              id: doc.id,
+              name: data['name'] ?? '',
+              league: data['league'] ?? '',
+              logoUrl: data['logo'] ?? data['logoUrl'] ?? '',
+              country: data['country'] ?? '',
+              stadium: data['stadium'] ?? '',
+              stadiumCountry: data['stadiumCountry'] ?? '',
+              city: data['city'] ?? '',
+              season: data['season'] is int ? data['season'] : (data['season'] is String ? int.tryParse(data['season']) ?? 2023 : 2023),
+              additionalFields: additionalFields,
+            );
+          }).toList();
     } catch (e) {
       print('Chyba při načítání týmů: $e');
       return [];

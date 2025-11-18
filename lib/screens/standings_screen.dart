@@ -52,7 +52,7 @@ class _StandingsScreenState extends State<StandingsScreen> {
     
     try {
       // Aktuální sezóna
-      final currentSeason = 2024;
+      final currentSeason = 2023;
       
       // Načíst z Firebase
       final standings = await _firestoreService.getStandings(
@@ -87,7 +87,7 @@ class _StandingsScreenState extends State<StandingsScreen> {
     
     try {
       // Aktuální sezóna
-      final currentSeason = 2024;
+      final currentSeason = 2023;
       
       // Načíst nová data z API a uložit do Firebase
       await _firestoreService.fetchAndSaveStandings(
@@ -340,7 +340,7 @@ class _StandingsScreenState extends State<StandingsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildLegendItem(Colors.green, '1-4: Champions League'),
+                                _buildLegendItem(Colors.green, '1-4: Kvalifikace'),
                                 _buildLegendItem(Colors.red, '18-20: Sestup'),
                               ],
                             ),

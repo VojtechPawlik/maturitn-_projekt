@@ -116,22 +116,20 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  // Povolené ligy - pouze top 5 lig a evropské soutěže
+  // Povolené ligy - pouze top 5 evropských lig
   static const Set<int> _allowedLeagueIds = {
     39,   // Premier League (Anglická)
     140,  // La Liga (Španělská)
     135,  // Serie A (Italská)
     78,   // Bundesliga (Německá)
     61,   // Ligue 1 (Francouzská)
-    2,    // Champions League (Liga mistrů)
-    3,    // Europa League (Evropská liga)
   };
 
   void _setupAutoUpdate() {
     // Přidat ligy k automatické aktualizaci
     // Pouze hlavní evropské ligy
     // Aktuální sezóna
-    final currentSeason = 2024;
+    final currentSeason = 2023;
     
     final Map<String, Map<String, int>> leagueConfigs = {
       'premier_league': {'apiLeagueId': 39, 'season': currentSeason},      // Anglická Premier League
@@ -139,8 +137,6 @@ class _MainScreenState extends State<MainScreen> {
       'serie_a': {'apiLeagueId': 135, 'season': currentSeason},            // Italská Serie A
       'bundesliga': {'apiLeagueId': 78, 'season': currentSeason},          // Německá Bundesliga
       'ligue_1': {'apiLeagueId': 61, 'season': currentSeason},             // Francouzská Ligue 1
-      'champions_league': {'apiLeagueId': 2, 'season': currentSeason},    // Liga mistrů
-      'europa_league': {'apiLeagueId': 3, 'season': currentSeason},        // Evropská liga
     };
 
     for (var entry in leagueConfigs.entries) {
@@ -871,35 +867,12 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildCompetitionCard(Competition competition) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 2,
-      child: ListTile(
-        leading: competition.logo.startsWith('http')
-            ? Image.network(
-                competition.logo,
-                width: 40,
-                height: 40,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(Icons.sports_soccer, size: 40);
-                },
-              )
-            : Text(
-                competition.logo,
-                style: const TextStyle(fontSize: 24),
-              ),
-        title: Text(
-          competition.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
-        ),
-        subtitle: Text(
-          competition.country,
-          style: const TextStyle(color: Colors.black54),
-        ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
         onTap: () {
           // Mapa ID lig na jejich API ID
           final Map<String, int> leagueApiIds = {
@@ -908,8 +881,6 @@ class _MainScreenState extends State<MainScreen> {
             'serie_a': 135,
             'bundesliga': 78,
             'ligue_1': 61,
-            'champions_league': 2,
-            'europa_league': 3,
           };
 
           // Pokud liga má API ID, otevři novou obrazovku s tabulkou
@@ -934,6 +905,77 @@ class _MainScreenState extends State<MainScreen> {
             ),
           );
         },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Logo
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: competition.logo.startsWith('http')
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          competition.logo,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.sports_soccer,
+                              size: 32,
+                              color: Colors.grey,
+                            );
+                          },
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          competition.logo,
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 16),
+              // Název a země
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      competition.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      competition.country,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Šipka
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 18,
+                color: Colors.grey[400],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

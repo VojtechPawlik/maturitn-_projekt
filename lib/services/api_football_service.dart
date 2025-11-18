@@ -66,16 +66,6 @@ class ApiFootballService {
         if (data['errors'] != null && data['errors'].isNotEmpty) {
           final errorMsg = data['errors'].values.first.toString();
           print('❌ API chyba: $errorMsg');
-          
-          // Pokud je to chyba s plánem a sezónou, zkusit 2023
-          if (errorMsg.contains('Free plans') && errorMsg.contains('season')) {
-            if (season == 2024) {
-              print('🔄 Zkouším sezónu 2023 místo 2024...');
-              // Rekurzivně zkusit 2023
-              return await getStandings(leagueId: leagueId, season: 2023);
-            }
-          }
-          
           throw Exception('API chyba: $errorMsg');
         }
         
@@ -83,13 +73,6 @@ class ApiFootballService {
         if (data['response'] == null || data['response'].isEmpty) {
           print('⚠️ API vrátilo prázdnou odpověď pro ligu $leagueId, sezóna $season');
           print('Celá odpověď: ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}');
-          
-          // Pokud je to sezóna 2024 a free plán, zkusit 2023
-          if (season == 2024) {
-            print('🔄 Zkouším sezónu 2023 místo 2024...');
-            return await getStandings(leagueId: leagueId, season: 2023);
-          }
-          
           throw Exception('API vrátilo prázdnou odpověď pro sezónu $season');
         }
         
@@ -297,10 +280,6 @@ class ApiFootballService {
         
         if (data['errors'] != null && data['errors'].isNotEmpty) {
           final errorMsg = data['errors'].values.first.toString();
-          if (errorMsg.contains('Free plans') && errorMsg.contains('season') && season == 2024) {
-            print('🔄 Zkouším sezónu 2023 místo 2024...');
-            return await getTeamsFromLeague(leagueId: leagueId, season: 2023);
-          }
           throw Exception('API chyba: $errorMsg');
         }
 
