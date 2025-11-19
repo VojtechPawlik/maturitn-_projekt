@@ -354,34 +354,60 @@ class _MainScreenState extends State<MainScreen> {
           _buildNewsScreen(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        selectedItemColor: const Color(0xFF3E5F44),
-        unselectedItemColor: Colors.grey,
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.favorite),
-            label: LocalizationService.translate('favorites'),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.emoji_events),
-            label: LocalizationService.translate('competitions'),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 8,
+            right: 8,
+            top: 4,
+            bottom: MediaQuery.of(context).padding.bottom,
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.home),
-            label: LocalizationService.translate('home'),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(Icons.favorite, 0),
+              _buildNavItem(Icons.emoji_events, 1),
+              _buildNavItem(Icons.home, 2),
+              _buildNavItem(Icons.groups, 3),
+              _buildNavItem(Icons.article, 4),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.groups),
-            label: LocalizationService.translate('teams'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, int index) {
+    final isSelected = _currentIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentIndex = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: isSelected ? const Color(0xFF3E5F44).withOpacity(0.1) : Colors.transparent,
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.article),
-            label: LocalizationService.translate('news'),
+          child: Icon(
+            icon,
+            color: isSelected ? const Color(0xFF3E5F44) : Colors.grey,
+            size: 26,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -670,7 +696,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildNewsScreen() {
     return Center(
       child: Text(
-        LocalizationService.isEnglish ? 'Coming soon' : 'Již brzy',
+        'Již brzy',
         style: const TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,

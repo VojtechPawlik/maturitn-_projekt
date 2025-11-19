@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'main_screen.dart';
-import '../services/localization_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -130,7 +129,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 ),
                     SizedBox(height: 16),
                     Text(
-                      LocalizationService.isEnglish ? 'Loading...' : 'Načítání...',
+                      'Načítání...',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 16,
@@ -155,7 +154,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                           ),
                         ),
                         child: Text(
-                          LocalizationService.isEnglish ? 'Start App' : 'Spustit aplikaci',
+                          'Spustit aplikaci',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
@@ -167,7 +166,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       
                       // Verze aplikace
                       Text(
-                        LocalizationService.isEnglish ? 'Version 1.0.0' : 'Verze 1.0.0',
+                        'Verze 1.0.0',
                         style: TextStyle(
                           color: Colors.white54,
                           fontSize: 12,

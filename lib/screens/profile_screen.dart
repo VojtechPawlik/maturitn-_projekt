@@ -304,8 +304,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(LocalizationService.isEnglish ? 'Logout' : 'Odhlášení'),
-        content: Text(LocalizationService.isEnglish ? 'Are you sure you want to logout?' : 'Opravdu se chcete odhlásit?'),
+        title: const Text('Odhlášení'),
+        content: const Text('Opravdu se chcete odhlásit?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -393,7 +393,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      LocalizationService.isEnglish ? 'Account Information' : 'Informace o účtu',
+                      'Informace o účtu',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -422,7 +422,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   backgroundColor: const Color(0xFF3E5F44),
                 ),
                 child: Text(_isLoading 
-                  ? (LocalizationService.isEnglish ? 'Saving...' : 'Ukládám...')
+                  ? 'Ukládám...'
                   : LocalizationService.translate('save_changes')),
               ),
             ),

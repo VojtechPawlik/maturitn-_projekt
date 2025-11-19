@@ -10,34 +10,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  String _selectedLanguage = 'Čeština';
-  
-  final List<String> _languages = ['Čeština', 'English'];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    // Načíst uložený jazyk
-    setState(() {
-      _selectedLanguage = LocalizationService.currentLanguage;
-    });
-  }
 
   void _saveNotifications(bool value) {
     setState(() {
       _notificationsEnabled = value;
-    });
-  }
-
-  Future<void> _saveLanguage(String language) async {
-    await LocalizationService.setLanguage(language);
-    
-    setState(() {
-      _selectedLanguage = language;
     });
   }
 
@@ -61,13 +37,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: _notificationsEnabled,
               onChanged: _saveNotifications,
             ),
-          ),
-          _buildSettingsTile(
-            icon: Icons.language,
-            title: LocalizationService.translate('language'),
-            subtitle: _selectedLanguage,
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showLanguageDialog(),
           ),
           
           const SizedBox(height: 24),
@@ -118,27 +87,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         subtitle: subtitle != null ? Text(subtitle) : null,
         trailing: trailing,
         onTap: onTap,
-      ),
-    );
-  }
-
-  void _showLanguageDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(LocalizationService.translate('select_language')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: _languages.map((language) => RadioListTile<String>(
-            title: Text(language),
-            value: language,
-            groupValue: _selectedLanguage,
-            onChanged: (value) {
-              _saveLanguage(value!);
-              Navigator.of(context).pop();
-            },
-          )).toList(),
-        ),
       ),
     );
   }
