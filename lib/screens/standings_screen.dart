@@ -191,8 +191,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
                 )
               : SingleChildScrollView(
                   child: Column(
-                        children: [
-                          Table(
+                    children: [
+                      Table(
                         columnWidths: {
                           0: FixedColumnWidth(40),  // #
                           1: FlexColumnWidth(3.0),  // Tým - flexibilní
@@ -208,33 +208,38 @@ class _StandingsScreenState extends State<StandingsScreen> {
                             ),
                             children: const [
                               TableCell(
+                                verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: Text('#', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                  child: Text('#', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
                                 ),
                               ),
                               TableCell(
+                                verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: Text('Tým', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                  child: Text('Tým', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                 ),
                               ),
                               TableCell(
+                                verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: Text('Z', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                  child: Text('Z', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
                                 ),
                               ),
                               TableCell(
+                                verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: Text('G', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                  child: Text('G', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
                                 ),
                               ),
                               TableCell(
+                                verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: Text('B', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                  child: Text('B', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
                                 ),
                               ),
                             ],
@@ -244,13 +249,14 @@ class _StandingsScreenState extends State<StandingsScreen> {
                             return TableRow(
                               children: [
                                 TableCell(
+                                  verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Container(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                                     decoration: BoxDecoration(
                                       color: team.position <= 4
-                                          ? Colors.green.withOpacity(0.2)
+                                          ? Colors.green.withOpacity(0.08)
                                           : team.position >= 18
-                                              ? Colors.red.withOpacity(0.2)
+                                              ? Colors.red.withOpacity(0.08)
                                               : null,
                                     ),
                                     child: Text(
@@ -258,6 +264,7 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
+                                        fontSize: 12,
                                         color: team.position <= 4
                                             ? Colors.green.shade700
                                             : team.position >= 18
@@ -268,26 +275,27 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                   ),
                                 ),
                                 TableCell(
+                                  verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Padding(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                                     child: Row(
                                       children: [
                                         Image.network(
                                           team.teamLogo,
-                                          width: 20,
-                                          height: 20,
+                                          width: 16,
+                                          height: 16,
                                           errorBuilder: (context, error, stackTrace) {
-                                            return const Icon(Icons.sports_soccer, size: 20);
+                                            return const Icon(Icons.sports_soccer, size: 16);
                                           },
                                         ),
-                                        const SizedBox(width: 8),
+                                        const SizedBox(width: 4),
                                         Expanded(
                                           child: Text(
                                             team.teamName,
                                             overflow: TextOverflow.ellipsis,
                                             maxLines: 1,
                                             style: TextStyle(
-                                              fontSize: team.teamName.length > 20 ? 11 : 13,
+                                              fontSize: team.teamName.length > 20 ? 10 : 12,
                                             ),
                                           ),
                                         ),
@@ -296,34 +304,39 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                   ),
                                 ),
                                 TableCell(
+                                  verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Padding(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                                     child: Text(
                                       team.played.toString(),
                                       textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 12),
                                     ),
                                   ),
                                 ),
                                 TableCell(
+                                  verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                                     child: Text(
                                       '${team.goalsFor}:${team.goalsAgainst}',
                                       textAlign: TextAlign.center,
                                       maxLines: 1,
                                       overflow: TextOverflow.visible,
+                                      style: const TextStyle(fontSize: 12),
                                     ),
                                   ),
                                 ),
                                 TableCell(
+                                  verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Padding(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                                     child: Text(
                                       team.points.toString(),
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+                                        fontSize: 14,
                                       ),
                                     ),
                                   ),
@@ -333,20 +346,20 @@ class _StandingsScreenState extends State<StandingsScreen> {
                           }).toList(),
                         ],
                       ),
-                          const SizedBox(height: 16),
-                          // Legenda
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLegendItem(Colors.green, '1-4: Kvalifikace'),
-                                _buildLegendItem(Colors.red, '18-20: Sestup'),
-                              ],
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 16),
+                      // Legenda
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLegendItem(Colors.green, '1-4: Kvalifikace'),
+                            _buildLegendItem(Colors.red, '18-20: Sestup'),
+                          ],
+                        ),
                       ),
+                    ],
+                  ),
                 ),
     );
   }
