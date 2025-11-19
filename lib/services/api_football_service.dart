@@ -16,15 +16,8 @@ class ApiFootballService {
       ));
       await remoteConfig.fetchAndActivate();
       _apiKey = remoteConfig.getString('api_football_key');
-      
-      if (_apiKey == null || _apiKey!.isEmpty) {
-        print('⚠️ API klíč není nastaven v Firebase Remote Config!');
-        print('Nastavte parametr "api_football_key" v Firebase Console → Remote Config');
-      } else {
-        print('✅ API klíč načten (délka: ${_apiKey!.length} znaků)');
-      }
     } catch (e) {
-      print('❌ Chyba při načítání API klíče: $e');
+      // Chyba při načítání API klíče
     }
   }
 
@@ -39,7 +32,6 @@ class ApiFootballService {
 
     try {
       final url = '$_baseUrl/standings?league=$leagueId&season=$season';
-      print('🌐 Volám API: $url');
       
       final response = await http.get(
         Uri.parse(url),
@@ -48,43 +40,28 @@ class ApiFootballService {
           'x-rapidapi-host': 'v3.football.api-sports.io',
         },
       );
-      
-      print('📡 HTTP Status: ${response.statusCode}');
-      if (response.statusCode != 200) {
-        print('❌ HTTP Response body: ${response.body.substring(0, response.body.length > 300 ? 300 : response.body.length)}');
-      }
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         
-        // Debug: zobrazit celou odpověď
-        print('📥 API odpověď pro ligu $leagueId, sezóna $season:');
-        print('Response status: ${data['results'] ?? 'N/A'}');
-        print('Response data: ${data['response']?.length ?? 0} položek');
-        
         // Kontrola chyb z API
         if (data['errors'] != null && data['errors'].isNotEmpty) {
           final errorMsg = data['errors'].values.first.toString();
-          print('❌ API chyba: $errorMsg');
           throw Exception('API chyba: $errorMsg');
         }
         
         // Kontrola struktury odpovědi
         if (data['response'] == null || data['response'].isEmpty) {
-          print('⚠️ API vrátilo prázdnou odpověď pro ligu $leagueId, sezóna $season');
-          print('Celá odpověď: ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}');
           throw Exception('API vrátilo prázdnou odpověď pro sezónu $season');
         }
         
         final responseData = data['response'][0];
         if (responseData['league'] == null || responseData['league']['standings'] == null) {
-          print('API neobsahuje standings pro ligu $leagueId');
           throw Exception('API neobsahuje tabulku pro tuto ligu');
         }
         
         final standingsList = responseData['league']['standings'];
         if (standingsList == null || standingsList.isEmpty) {
-          print('Standings jsou prázdné pro ligu $leagueId');
           throw Exception('Tabulka je prázdná');
         }
         
@@ -118,7 +95,6 @@ class ApiFootballService {
               points: team['points'] ?? 0,
             );
           } catch (e) {
-            print('Chyba při parsování týmu: $e');
             rethrow;
           }
         }).toList();
@@ -134,7 +110,6 @@ class ApiFootballService {
         throw Exception('API chyba (${response.statusCode}): $errorMsg');
       }
     } catch (e) {
-      print('Chyba při načítání tabulky pro ligu $leagueId: $e');
       rethrow; // Znovu vyhodit chybu, aby se zobrazila uživateli
     }
   }
@@ -196,7 +171,6 @@ class ApiFootballService {
       }
       return [];
     } catch (e) {
-      print('Chyba při načítání zápasů: $e');
       return [];
     }
   }
@@ -248,7 +222,6 @@ class ApiFootballService {
       }
       return [];
     } catch (e) {
-      print('Chyba při načítání živých zápasů: $e');
       return [];
     }
   }
@@ -265,7 +238,6 @@ class ApiFootballService {
     try {
       // Použijeme teams endpoint pro detailní informace o týmech
       final url = '$_baseUrl/teams?league=$leagueId&season=$season';
-      print('🌐 Načítám týmy z ligy $leagueId...');
       
       final response = await http.get(
         Uri.parse(url),
@@ -295,6 +267,7 @@ class ApiFootballService {
           final venue = teamData['venue'] ?? {};
           
           teams.add({
+            'id': team['id'] ?? 0, // API team ID
             'name': team['name'] ?? '',
             'logo': team['logo'] ?? '',
             'country': leagueInfo['country'] ?? '',
@@ -305,12 +278,67 @@ class ApiFootballService {
           });
         }
         
-        print('✅ Načteno ${teams.length} týmů z ligy $leagueId');
         return teams;
       }
       return [];
     } catch (e) {
-      print('❌ Chyba při načítání týmů z ligy $leagueId: $e');
+      return [];
+    }
+  }
+
+  // Načíst hráče týmu
+  Future<List<Map<String, dynamic>>> getPlayersFromTeam({
+    required int teamId,
+    required int season,
+  }) async {
+    if (_apiKey == null) {
+      await initializeApiKey();
+    }
+
+    try {
+      final url = '$_baseUrl/players/squads?team=$teamId';
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'x-rapidapi-key': _apiKey ?? '',
+          'x-rapidapi-host': 'v3.football.api-sports.io',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['errors'] != null && data['errors'].isNotEmpty) {
+          final errorMsg = data['errors'].values.first.toString();
+          throw Exception('API chyba: $errorMsg');
+        }
+
+        if (data['response'] == null || data['response'].isEmpty) {
+          return [];
+        }
+
+        final List<Map<String, dynamic>> players = [];
+        final squad = data['response'][0];
+        
+        if (squad['players'] != null) {
+          for (var playerData in squad['players']) {
+            players.add({
+              'id': playerData['id'] ?? 0,
+              'name': playerData['name'] ?? '',
+              'number': playerData['number'] ?? 0,
+              'position': playerData['position'] ?? '',
+              'age': playerData['age'] ?? 0,
+              'nationality': playerData['nationality'] ?? '',
+              'photo': playerData['photo'] ?? '',
+            });
+          }
+        }
+        
+        return players;
+      }
+      return [];
+    } catch (e) {
       return [];
     }
   }

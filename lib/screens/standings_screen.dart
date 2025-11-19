@@ -74,7 +74,6 @@ class _StandingsScreenState extends State<StandingsScreen> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      print('❌ Chyba při načítání tabulky: $e');
       // Zkusit načíst z API jako fallback
       await _refreshStandings();
     }
@@ -117,7 +116,6 @@ class _StandingsScreenState extends State<StandingsScreen> {
               duration: Duration(seconds: 2),
             ),
           );
-          print('✅ Tabulka aktualizována!');
         }
       }
     } catch (e) {
@@ -127,9 +125,6 @@ class _StandingsScreenState extends State<StandingsScreen> {
             _isRefreshing = false;
           }
         });
-        
-        // Logovat chybu do konzole
-        print('❌ Chyba při aktualizaci tabulky: $e');
         
         if (!silent) {
           ScaffoldMessenger.of(context).showSnackBar(

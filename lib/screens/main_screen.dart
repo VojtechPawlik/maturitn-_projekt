@@ -106,7 +106,7 @@ class _MainScreenState extends State<MainScreen> {
         final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
         matchesMap[dateKey] = matches;
       } catch (e) {
-        print('Chyba při načítání zápasů pro ${date.toString()}: $e');
+        // Chyba při načítání zápasů
       }
     }
     
@@ -228,9 +228,11 @@ class _MainScreenState extends State<MainScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const ProfileScreen()),
     ).then((result) {
-      // Pokud se uživatel odhlásil v profilu, aktualizuj stav
+      // Pokud se uživatel odhlásil v profilu nebo uložil změny, aktualizuj stav
       if (result == true) {
         _checkAuthStatus();
+        // Aktualizovat UI pro zobrazení nového profilového obrázku
+        setState(() {});
       }
     });
   }
@@ -294,53 +296,36 @@ class _MainScreenState extends State<MainScreen> {
               padding: const EdgeInsets.only(right: 8),
               child: GestureDetector(
                 onTap: _navigateToProfile,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: ClipOval(
-                        child: SessionManager().profileImagePath != null
-                            ? Container(
-                                color: Colors.white,
-                                child: const Icon(
-                                  Icons.photo,
-                                  color: Color(0xFF0A84FF),
-                                  size: 18,
-                                ),
-                              )
-                            : Container(
-                                color: Colors.white,
-                                child: const Icon(
-                                  Icons.person,
-                                  color: Color(0xFF0A84FF),
-                                  size: 18,
-                                ),
-                              ),
-                      ),
-                    ),
-                    if (SessionManager().userNickname != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          SessionManager().userNickname!.length > 8
-                              ? '${SessionManager().userNickname!.substring(0, 8)}...'
-                              : SessionManager().userNickname!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
+                child: SessionManager().profileImageUrl != null && 
+                       SessionManager().profileImageUrl!.isNotEmpty &&
+                       SessionManager().profileImageUrl!.startsWith('http')
+                    ? Container(
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
                         ),
+                        child: ClipOval(
+                          child: Image.network(
+                            SessionManager().profileImageUrl!,
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 24,
+                              );
+                            },
+                          ),
+                        ),
+                      )
+                    : const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 24,
                       ),
-                  ],
-                ),
               ),
             )
           else

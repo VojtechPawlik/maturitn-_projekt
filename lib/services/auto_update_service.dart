@@ -36,12 +36,10 @@ class AutoUpdateService {
   /// [intervalMinutes] - interval aktualizace v minutách (výchozí: 10)
   void startAutoUpdate({int intervalMinutes = 10}) {
     if (_isRunning) {
-      print('Automatická aktualizace již běží');
       return;
     }
 
     _isRunning = true;
-    print('🚀 Spouštím automatickou aktualizaci (každých $intervalMinutes minut)');
 
     // Okamžitá aktualizace při startu
     _performUpdate();
@@ -58,18 +56,13 @@ class AutoUpdateService {
     _updateTimer?.cancel();
     _updateTimer = null;
     _isRunning = false;
-    print('⏹️ Automatická aktualizace zastavena');
   }
 
   /// Provede aktualizaci všech lig
   Future<void> _performUpdate() async {
     if (_leaguesToUpdate.isEmpty) {
-      print('⚠️ Žádné ligy k aktualizaci');
       return;
     }
-
-    print('🔄 Začínám aktualizaci ${_leaguesToUpdate.length} lig...');
-    final startTime = DateTime.now();
 
     for (var entry in _leaguesToUpdate.entries) {
       final leagueId = entry.key;
@@ -81,14 +74,10 @@ class AutoUpdateService {
           apiLeagueId: config['apiLeagueId']!,
           season: config['season']!,
         );
-        print('✅ Liga $leagueId aktualizována');
       } catch (e) {
-        print('❌ Chyba při aktualizaci ligy $leagueId: $e');
+        // Chyba při aktualizaci ligy
       }
     }
-
-    final duration = DateTime.now().difference(startTime);
-    print('✨ Aktualizace dokončena za ${duration.inSeconds}s');
   }
 
   /// Manuální aktualizace všech lig

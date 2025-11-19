@@ -78,12 +78,9 @@ class FirestoreService {
         'teams': standings.map((team) => team.toMap()).toList(),
       });
       
-      print('✅ Tabulka pro $leagueId uložena do Firestore');
-      
       // Automaticky načíst a uložit týmy z této ligy
       await _saveTeamsFromStandings(standings, leagueId, apiLeagueId, season);
     } catch (e) {
-      print('❌ Chyba při ukládání tabulky pro $leagueId: $e');
       rethrow; // Znovu vyhodit chybu
     }
   }
@@ -98,7 +95,6 @@ class FirestoreService {
     // Neukládat týmy z Champions League a Europa League
     final leagueIdLower = leagueId.toLowerCase();
     if (leagueIdLower.contains('champions') || leagueIdLower.contains('europa')) {
-      print('⚠️ Přeskočeno ukládání týmů z ligy $leagueId (Champions/Europa League)');
       return;
     }
     
@@ -162,17 +158,12 @@ class FirestoreService {
           
           if (!existingDoc.exists) {
             await _firestore.collection('teams').doc(teamId).set(teamMap, SetOptions(merge: true));
-            print('  ✅ Přidán tým: ${teamData['name']}');
           } else {
             await _firestore.collection('teams').doc(teamId).update(teamMap);
-            print('  🔄 Aktualizován tým: ${teamData['name']}');
           }
         }
       }
-      
-      print('✅ Týmy z ligy $leagueId uloženy do Firestore');
     } catch (e) {
-      print('⚠️ Chyba při ukládání týmů z ligy $leagueId: $e');
       // Nevyhodit chybu, protože tabulka se už uložila
     }
   }
@@ -224,7 +215,7 @@ class FirestoreService {
         'matches': matches.map((match) => match.toMap()).toList(),
       }, SetOptions(merge: true));
     } catch (e) {
-      print('Chyba při ukládání zápasů: $e');
+      // Chyba při ukládání zápasů
     }
   }
 
@@ -252,7 +243,6 @@ class FirestoreService {
       }
       return [];
     } catch (e) {
-      print('Chyba při načítání zápasů: $e');
       return [];
     }
   }
@@ -307,7 +297,7 @@ class FirestoreService {
       // Aktualizovat zápasy pro dnešek a zítřek (pouze pokud tabulka byla úspěšně načtena)
       // Zápasy se aktualizují samostatně při zobrazení kalendáře
     } catch (e) {
-      print('Chyba při automatické aktualizaci: $e');
+      // Chyba při automatické aktualizaci
     }
   }
 
@@ -324,11 +314,8 @@ class FirestoreService {
       ];
       
       final currentSeason = 2023; // Změňte na 2023 pokud máte free plán
-      int totalTeams = 0;
       
       for (var league in leagues) {
-        print('📥 Načítám týmy z ${league['name']}...');
-        
         final teams = await _apiFootballService.getTeamsFromLeague(
           leagueId: league['id'] as int,
           season: currentSeason,
@@ -349,34 +336,46 @@ class FirestoreService {
               'league': teamData['league'],
               'logo': teamData['logo'],
               'logoUrl': teamData['logo'],
-              'country': teamData['country'],
-              'stadium': '',
-              'stadiumCountry': '',
-              'city': '',
+              'country': teamData['country'] ?? '',
+              'stadium': teamData['stadium'] ?? '',
+              'stadiumCountry': teamData['stadiumCountry'] ?? teamData['country'] ?? '',
+              'city': teamData['city'] ?? '',
               'season': currentSeason,
+              'apiTeamId': teamData['id'] ?? 0, // Uložit API team ID
             }, SetOptions(merge: true));
-            
-            totalTeams++;
-            print('  ✅ Přidán tým: ${teamData['name']}');
           } else {
-            // Aktualizovat existující tým
-            await _firestore.collection('teams').doc(teamId).update({
+            // Aktualizovat existující tým - doplnit chybějící informace
+            final updateData = <String, dynamic>{
               'logo': teamData['logo'],
               'logoUrl': teamData['logo'],
               'league': teamData['league'],
               'season': currentSeason,
-            });
-            print('  🔄 Aktualizován tým: ${teamData['name']}');
+              'apiTeamId': teamData['id'] ?? existingDoc.data()?['apiTeamId'] ?? 0,
+            };
+            
+            // Doplnit chybějící informace, pokud nejsou vyplněné
+            final existingData = existingDoc.data()!;
+            if ((existingData['country'] ?? '').toString().isEmpty) {
+              updateData['country'] = teamData['country'] ?? '';
+            }
+            if ((existingData['stadium'] ?? '').toString().isEmpty) {
+              updateData['stadium'] = teamData['stadium'] ?? '';
+            }
+            if ((existingData['city'] ?? '').toString().isEmpty) {
+              updateData['city'] = teamData['city'] ?? '';
+            }
+            if ((existingData['stadiumCountry'] ?? '').toString().isEmpty) {
+              updateData['stadiumCountry'] = teamData['stadiumCountry'] ?? teamData['country'] ?? '';
+            }
+            
+            await _firestore.collection('teams').doc(teamId).update(updateData);
           }
         }
         
         // Počkat mezi ligami, aby se nepřekročil API limit
         await Future.delayed(const Duration(seconds: 2));
       }
-      
-      print('✅ Celkem přidáno/aktualizováno $totalTeams týmů z top 5 lig');
     } catch (e) {
-      print('❌ Chyba při načítání a ukládání týmů: $e');
       rethrow;
     }
   }
@@ -424,7 +423,7 @@ class FirestoreService {
             final data = doc.data();
             // Vytvořit mapu všech fields kromě základních
             final Map<String, dynamic> additionalFields = {};
-            final knownFields = {'name', 'league', 'logo', 'logoUrl', 'country', 'stadium', 'stadiumCountry', 'city', 'season'};
+            final knownFields = {'name', 'league', 'logo', 'logoUrl', 'country', 'stadium', 'stadiumCountry', 'city', 'season', 'apiTeamId'};
             
             data.forEach((key, value) {
               if (!knownFields.contains(key)) {
@@ -442,12 +441,132 @@ class FirestoreService {
               stadiumCountry: data['stadiumCountry'] ?? '',
               city: data['city'] ?? '',
               season: data['season'] is int ? data['season'] : (data['season'] is String ? int.tryParse(data['season']) ?? 2023 : 2023),
+              apiTeamId: data['apiTeamId'] is int ? data['apiTeamId'] : (data['apiTeamId'] is String ? int.tryParse(data['apiTeamId']) ?? 0 : 0),
               additionalFields: additionalFields,
             );
           }).toList();
     } catch (e) {
-      print('Chyba při načítání týmů: $e');
       return [];
+    }
+  }
+
+  // Načíst a uložit hráče týmu
+  Future<void> fetchAndSavePlayers({
+    required String teamId,
+    required int apiTeamId,
+    required int season,
+  }) async {
+    if (apiTeamId == 0) {
+      return;
+    }
+
+    try {
+      // Načíst hráče z API
+      final players = await _apiFootballService.getPlayersFromTeam(
+        teamId: apiTeamId,
+        season: season,
+      );
+
+      if (players.isEmpty) {
+        return;
+      }
+
+      // Uložit do Firestore
+      await _firestore.collection('teams').doc(teamId).collection('players').doc('squad_$season').set({
+        'season': season,
+        'updated': FieldValue.serverTimestamp(),
+        'players': players,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Načíst hráče týmu z Firestore
+  Future<List<Player>> getPlayers({
+    required String teamId,
+    required int season,
+  }) async {
+    try {
+      final doc = await _firestore
+          .collection('teams')
+          .doc(teamId)
+          .collection('players')
+          .doc('squad_$season')
+          .get();
+
+      if (!doc.exists || doc.data() == null) {
+        return [];
+      }
+
+      final data = doc.data()!;
+      final playersData = data['players'] as List?;
+
+      if (playersData == null || playersData.isEmpty) {
+        return [];
+      }
+
+      return playersData.map((playerData) {
+        return Player(
+          id: playerData['id'] ?? 0,
+          name: playerData['name'] ?? '',
+          number: playerData['number'] ?? 0,
+          position: playerData['position'] ?? '',
+          age: playerData['age'] ?? 0,
+          nationality: playerData['nationality'] ?? '',
+          photo: playerData['photo'] ?? '',
+        );
+      }).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Aktualizovat názvy lig u všech týmů
+  Future<int> updateLeagueNames() async {
+    try {
+      // Mapování starých názvů na nové
+      final leagueNameMap = {
+        'premier_league': 'Premier League',
+        'la_liga': 'La Liga',
+        'serie_a': 'Serie A',
+        'ligue_1': 'Ligue 1',
+        'bundesliga': 'Bundesliga',
+      };
+
+      // Načíst všechny týmy
+      final snapshot = await _firestore.collection('teams').get();
+      int updatedCount = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final currentLeague = (data['league'] ?? '').toString().trim();
+        
+        // Zkontrolovat, jestli potřebuje aktualizaci
+        String? newLeagueName;
+        
+        // Zkontrolovat přesné shody (case-insensitive)
+        final currentLeagueLower = currentLeague.toLowerCase();
+        for (var entry in leagueNameMap.entries) {
+          if (currentLeagueLower == entry.key.toLowerCase() || 
+              currentLeagueLower.contains(entry.key.toLowerCase())) {
+            newLeagueName = entry.value;
+            break;
+          }
+        }
+
+        // Pokud našel nový název, aktualizovat
+        if (newLeagueName != null && currentLeague != newLeagueName) {
+          await _firestore.collection('teams').doc(doc.id).update({
+            'league': newLeagueName,
+          });
+          updatedCount++;
+        }
+      }
+
+      return updatedCount;
+    } catch (e) {
+      rethrow;
     }
   }
 }
@@ -478,6 +597,7 @@ class Team {
   final String stadiumCountry;
   final String city;
   final int season;
+  final int apiTeamId;
   final Map<String, dynamic> additionalFields;
 
   Team({
@@ -490,6 +610,28 @@ class Team {
     required this.stadiumCountry,
     required this.city,
     required this.season,
+    this.apiTeamId = 0,
     this.additionalFields = const {},
+  });
+}
+
+// Model pro hráče
+class Player {
+  final int id;
+  final String name;
+  final int number;
+  final String position;
+  final int age;
+  final String nationality;
+  final String photo;
+
+  Player({
+    required this.id,
+    required this.name,
+    required this.number,
+    required this.position,
+    required this.age,
+    required this.nationality,
+    required this.photo,
   });
 }

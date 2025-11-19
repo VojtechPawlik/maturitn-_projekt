@@ -9,17 +9,20 @@ class SessionManager {
   String? _userEmail;
   String? _userNickname;
   String? _profileImagePath;
+  String? _profileImageUrl;
 
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyUserEmail = 'user_email';
   static const String _keyUserNickname = 'user_nickname';
   static const String _keyProfileImagePath = 'profile_image_path';
+  static const String _keyProfileImageUrl = 'profile_image_url';
 
   // Gettery
   bool get isLoggedIn => _isLoggedIn;
   String? get userEmail => _userEmail;
   String? get userNickname => _userNickname;
   String? get profileImagePath => _profileImagePath;
+  String? get profileImageUrl => _profileImageUrl;
 
   // Načíst uložený stav z SharedPreferences
   Future<void> loadSavedSession() async {
@@ -34,6 +37,7 @@ class SessionManager {
     }
     
     _profileImagePath = prefs.getString('profile_image_path');
+    _profileImageUrl = prefs.getString('profile_image_url');
   }
 
   // Přihlášení uživatele
@@ -63,12 +67,13 @@ class SessionManager {
     _userEmail = null;
     _userNickname = null;
     _profileImagePath = null;
+    _profileImageUrl = null;
     
     await _clearPreferences();
   }
 
   // Aktualizace uživatelských dat
-  Future<void> updateUserData({String? nickname, String? profileImagePath}) async {
+  Future<void> updateUserData({String? nickname, String? profileImagePath, String? profileImageUrl}) async {
     final prefs = await SharedPreferences.getInstance();
     
     if (nickname != null) {
@@ -87,6 +92,15 @@ class SessionManager {
       _profileImagePath = null;
       await prefs.remove('profile_image_path');
     }
+    
+    if (profileImageUrl != null) {
+      _profileImageUrl = profileImageUrl;
+      await prefs.setString('profile_image_url', profileImageUrl);
+    } else if (profileImageUrl == null && _profileImageUrl != null) {
+      // Odstranit profilový obrázek
+      _profileImageUrl = null;
+      await prefs.remove('profile_image_url');
+    }
   }
 
   // Vymazat SharedPreferences
@@ -97,6 +111,7 @@ class SessionManager {
       await prefs.remove(_keyUserEmail);
       await prefs.remove(_keyUserNickname);
       await prefs.remove(_keyProfileImagePath);
+      await prefs.remove(_keyProfileImageUrl);
     } catch (e) {
       // Chyba při mazání - ignorovat
     }
