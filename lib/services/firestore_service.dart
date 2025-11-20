@@ -214,8 +214,38 @@ class FirestoreService {
         'updated': FieldValue.serverTimestamp(),
         'matches': matches.map((match) => match.toMap()).toList(),
       }, SetOptions(merge: true));
+      
+      // Smazat staré zápasy (starší než 11 dní)
+      await _deleteOldFixtures();
     } catch (e) {
       // Chyba při ukládání zápasů
+    }
+  }
+
+  // Smazat zápasy starší než 11 dní
+  Future<void> _deleteOldFixtures() async {
+    try {
+      final now = DateTime.now();
+      final cutoffDate = now.subtract(const Duration(days: 11));
+      final cutoffTimestamp = Timestamp.fromDate(cutoffDate);
+      
+      // Načíst všechny dokumenty s timestampem starším než cutoffDate
+      final snapshot = await _firestore
+          .collection('fixtures')
+          .where('timestamp', isLessThan: cutoffTimestamp)
+          .get();
+      
+      // Smazat všechny staré dokumenty
+      final batch = _firestore.batch();
+      for (var doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      if (snapshot.docs.isNotEmpty) {
+        await batch.commit();
+      }
+    } catch (e) {
+      // Chyba při mazání starých zápasů - ignorovat
     }
   }
 
@@ -296,6 +326,9 @@ class FirestoreService {
       
       // Aktualizovat zápasy pro dnešek a zítřek (pouze pokud tabulka byla úspěšně načtena)
       // Zápasy se aktualizují samostatně při zobrazení kalendáře
+      
+      // Smazat staré zápasy (starší než 11 dní)
+      await _deleteOldFixtures();
     } catch (e) {
       // Chyba při automatické aktualizaci
     }
