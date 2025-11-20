@@ -11,11 +11,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   late AnimationController _logoController;
-  late AnimationController _fadeController;
   late Animation<double> _logoAnimation;
-  late Animation<double> _fadeAnimation;
-  
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -29,11 +25,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
 
     _logoAnimation = Tween<double>(
       begin: 0.0,
@@ -41,14 +32,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     ).animate(CurvedAnimation(
       parent: _logoController,
       curve: Curves.easeOutBack,
-    ));
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
     ));
   }
 
@@ -62,27 +45,20 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // Počkat na dokončení animace loga
     await Future.delayed(const Duration(milliseconds: 1000));
     
-    // Spustit fade animaci pro obsah
-    _fadeController.forward();
-    
     // Simulovat načítání
     await Future.delayed(const Duration(milliseconds: 1500));
     
-    setState(() {
-      _isLoading = false;
-    });
-  }
-
-  void _startApp() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainScreen()),
-    );
+    // Automaticky přepnout do aplikace
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
+    }
   }
 
   @override
   void dispose() {
     _logoController.dispose();
-    _fadeController.dispose();
     super.dispose();
   }
 
@@ -119,62 +95,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               
               const SizedBox(height: 48),
               
-              // Načítací indikátor nebo obsah
-              if (_isLoading)
-                Column(
-                  children: [
-                    CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5E936C)),
-                  strokeWidth: 3,
-                ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Načítání...',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                )
-              else
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    children: [
-                      // Tlačítko Start aplikace
-                      FilledButton(
-                        onPressed: _startApp,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF3E5F44),
-                          minimumSize: const Size(200, 56),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                        ),
-                        child: Text(
-                          'Spustit aplikaci',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 32),
-                      
-                      // Verze aplikace
-                      Text(
-                        'Verze 1.0.0',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              // Načítací indikátor
+              CircularProgressIndicator(
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                strokeWidth: 3,
+              ),
               ],
             ),
           ),
