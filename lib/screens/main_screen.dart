@@ -78,7 +78,7 @@ class _MainScreenState extends State<MainScreen> {
     final now = DateTime.now();
     final dates = List.generate(11, (index) => now.add(Duration(days: index - 5)));
     
-    final Map<String, List<Match>> matchesMap = {};
+    final Map<String, List<Match>> allMatchesMap = {};
     final apiService = ApiFootballService();
     await apiService.initializeApiKey();
     
@@ -87,23 +87,24 @@ class _MainScreenState extends State<MainScreen> {
         // Vždy načíst z API a uložit do Firestore (pro aktualizaci dat)
         var allMatches = await apiService.getFixtures(date: date);
         
-        // Filtrovat pouze povolené ligy
-        var matches = _filterMatchesByLeague(allMatches);
+        // Filtrovat pouze povolené ligy (top 5 evropských lig)
+        var allowedMatches = allMatches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
         
-        // Uložit do Firestore všechny zápasy z rozmezí 5 dní
-        if (matches.isNotEmpty) {
-          await _firestoreService.saveFixtures(date: date, matches: matches);
+        // Uložit do Firestore všechny zápasy z rozmezí 5 dní (pouze povolené ligy)
+        if (allowedMatches.isNotEmpty) {
+          await _firestoreService.saveFixtures(date: date, matches: allowedMatches);
         }
         
         final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-        matchesMap[dateKey] = matches;
+        allMatchesMap[dateKey] = allowedMatches;
       } catch (e) {
         // Pokud selže načtení z API, zkusit načíst z Firestore jako fallback
         try {
           var matches = await _firestoreService.getFixtures(date);
-          matches = _filterMatchesByLeague(matches);
+          // Filtrovat pouze povolené ligy
+          matches = matches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
           final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-          matchesMap[dateKey] = matches;
+          allMatchesMap[dateKey] = matches;
         } catch (e2) {
           // Chyba při načítání zápasů
         }
@@ -111,7 +112,7 @@ class _MainScreenState extends State<MainScreen> {
     }
     
     setState(() {
-      _matchesByDate = matchesMap;
+      _matchesByDate = allMatchesMap;
       _isLoadingMatches = false;
     });
   }
@@ -151,11 +152,6 @@ class _MainScreenState extends State<MainScreen> {
     _autoUpdateService.startAutoUpdate(intervalMinutes: 360);
   }
 
-
-  // Filtrovat zápasy podle povolených lig
-  List<Match> _filterMatchesByLeague(List<Match> matches) {
-    return matches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
-  }
 
   Future<void> _loadLeagues() async {
     try {
@@ -272,6 +268,7 @@ class _MainScreenState extends State<MainScreen> {
     });
     _saveFavoriteTeams();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -739,23 +736,55 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    // Zobrazit zápasy pro vybraný den a všechny následující dny do konce týdne (neděle)
-    final selectedDay = _selectedDate.weekday; // 1 = pondělí, 7 = neděle
-    final daysUntilSunday = 7 - selectedDay; // Počet dní do neděle
+    // Seznam všech dat, která se mají zobrazit (aby se předešlo duplicitám)
+    final Set<String> datesToShow = {};
+    final List<MapEntry<DateTime, bool>> dateEntries = []; // DateTime a bool (zda je vybraný den)
+    
+    final selectedDay = _selectedDate.day;
+    final currentYear = _selectedDate.year;
+    final currentMonth = _selectedDate.month;
+    final additionalDays = [23, 24, 25, 26];
+    
+    // Pokud je vybraný den jeden z 23., 24., 25., 26., zobrazit zápasy pro všechny tyto dny
+    if (additionalDays.contains(selectedDay)) {
+      for (int day in additionalDays) {
+        try {
+          final date = DateTime(currentYear, currentMonth, day);
+          final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+          if (!datesToShow.contains(dateKey)) {
+            datesToShow.add(dateKey);
+            dateEntries.add(MapEntry(date, day == selectedDay)); // Označit vybraný den
+          }
+        } catch (e) {
+          // Ignorovat neplatná data (např. 31. únor)
+        }
+      }
+    } else {
+      // Jinak zobrazit pouze zápasy pro vybraný den
+      final dateKey = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+      if (!datesToShow.contains(dateKey)) {
+        datesToShow.add(dateKey);
+        dateEntries.add(MapEntry(_selectedDate, true)); // Vybraný den
+      }
+    }
+    
+    // Seřadit data chronologicky
+    dateEntries.sort((a, b) => a.key.compareTo(b.key));
     
     final List<Widget> widgets = [];
     bool hasAnyMatches = false;
     
-    // Projít vybraný den a všechny následující dny do neděle
-    for (int i = 0; i <= daysUntilSunday; i++) {
-      final date = _selectedDate.add(Duration(days: i));
+    // Projít všechna data a zobrazit zápasy
+    for (var entry in dateEntries) {
+      final date = entry.key;
+      final isSelected = entry.value;
       final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       final matches = _matchesByDate[dateKey] ?? [];
       
       if (matches.isNotEmpty) {
         hasAnyMatches = true;
         widgets.add(
-          _buildDateSection(date, matches, i == 0), // První den je vybraný
+          _buildDateSection(date, matches, isSelected),
         );
       }
     }
