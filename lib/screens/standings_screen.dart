@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
 import '../services/api_football_service.dart';
@@ -23,28 +22,11 @@ class _StandingsScreenState extends State<StandingsScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   List<StandingTeam> _standings = [];
   bool _isLoading = true;
-  bool _isRefreshing = false;
-  Timer? _autoUpdateTimer;
 
   @override
   void initState() {
     super.initState();
     _loadStandings();
-    _startAutoUpdate();
-  }
-
-  @override
-  void dispose() {
-    _autoUpdateTimer?.cancel();
-    super.dispose();
-  }
-
-  // Spustit automatickou aktualizaci každých 6 hodin (360 minut)
-  void _startAutoUpdate() {
-    _autoUpdateTimer = Timer.periodic(
-      const Duration(hours: 6),
-      (_) => _refreshStandings(silent: true),
-    );
   }
 
   Future<void> _loadStandings() async {
@@ -67,78 +49,30 @@ class _StandingsScreenState extends State<StandingsScreen> {
 
       // Pokud nejsou data, načti z API
       if (standings.isEmpty) {
-        await _refreshStandings();
-      } else {
-        // Pokud data existují, aktualizovat na pozadí (bez zobrazení loading)
-        _refreshStandings(silent: true);
+        try {
+          final currentSeason = 2023;
+          await _firestoreService.fetchAndSaveStandings(
+            leagueId: widget.leagueId,
+            apiLeagueId: widget.apiLeagueId,
+            season: currentSeason,
+          );
+          
+          final newStandings = await _firestoreService.getStandings(
+            leagueId: widget.leagueId,
+            season: currentSeason,
+          );
+          
+          if (mounted) {
+            setState(() {
+              _standings = newStandings;
+            });
+          }
+        } catch (e) {
+          // Ignorovat chybu při načítání z API
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      // Zkusit načíst z API jako fallback
-      await _refreshStandings();
-    }
-  }
-
-  Future<void> _refreshStandings({bool silent = false}) async {
-    if (!silent) {
-      setState(() => _isRefreshing = true);
-    }
-    
-    try {
-      // Aktuální sezóna
-      final currentSeason = 2023;
-      
-      // Načíst nová data z API a uložit do Firebase
-      await _firestoreService.fetchAndSaveStandings(
-        leagueId: widget.leagueId,
-        apiLeagueId: widget.apiLeagueId,
-        season: currentSeason,
-      );
-
-      // Znovu načíst z Firebase
-      final standings = await _firestoreService.getStandings(
-        leagueId: widget.leagueId,
-        season: currentSeason,
-      );
-
-      if (mounted) {
-        setState(() {
-          _standings = standings;
-          if (!silent) {
-            _isRefreshing = false;
-          }
-        });
-
-        if (!silent) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Tabulka aktualizována!'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          if (!silent) {
-            _isRefreshing = false;
-          }
-        });
-        
-        if (!silent) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ Chyba při aktualizaci: ${e.toString()}'),
-              duration: const Duration(seconds: 3),
-              action: SnackBarAction(
-                label: 'Zkusit znovu',
-                onPressed: () => _refreshStandings(),
-              ),
-            ),
-          );
-        }
-      }
     }
   }
 
@@ -149,38 +83,17 @@ class _StandingsScreenState extends State<StandingsScreen> {
         title: Text(widget.leagueName),
         backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: _isRefreshing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Icon(Icons.refresh),
-            onPressed: _isRefreshing ? null : _refreshStandings,
-            tooltip: 'Obnovit tabulku',
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _standings.isEmpty
-              ? Center(
+              ? const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.table_chart, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      const Text('Žádná data'),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: _refreshStandings,
-                        child: const Text('Načíst tabulku'),
-                      ),
+                      Icon(Icons.table_chart, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('Žádná data'),
                     ],
                   ),
                 )
@@ -189,11 +102,11 @@ class _StandingsScreenState extends State<StandingsScreen> {
                     children: [
                       Table(
                         columnWidths: {
-                          0: FixedColumnWidth(40),  // #
+                          0: FixedColumnWidth(50),  // #
                           1: FlexColumnWidth(3.0),  // Tým - flexibilní
-                          2: FixedColumnWidth(35),  // Z
-                          3: FixedColumnWidth(60),  // G
-                          4: FixedColumnWidth(40),  // B
+                          2: FixedColumnWidth(40),  // Z
+                          3: FixedColumnWidth(70),  // G
+                          4: FixedColumnWidth(50),  // B
                         },
                         children: [
                           // Header row
@@ -205,36 +118,36 @@ class _StandingsScreenState extends State<StandingsScreen> {
                               TableCell(
                                 verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                  child: Text('#', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                                  child: Text('#', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.center),
                                 ),
                               ),
                               TableCell(
                                 verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                  child: Text('Tým', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                                  child: Text('Tým', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                 ),
                               ),
                               TableCell(
                                 verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                  child: Text('Z', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                                  child: Text('Z', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.center),
                                 ),
                               ),
                               TableCell(
                                 verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                  child: Text('G', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                                  child: Text('G', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.center),
                                 ),
                               ),
                               TableCell(
                                 verticalAlignment: TableCellVerticalAlignment.middle,
                                 child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                  child: Text('B', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                                  child: Text('B', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.center),
                                 ),
                               ),
                             ],
@@ -246,51 +159,62 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                 TableCell(
                                   verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: team.position <= 4
-                                          ? Colors.green.withOpacity(0.08)
-                                          : team.position >= 18
-                                              ? Colors.red.withOpacity(0.08)
-                                              : null,
-                                    ),
-                                    child: Text(
-                                      team.position.toString(),
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                        color: team.position <= 4
-                                            ? Colors.green.shade700
-                                            : team.position >= 18
-                                                ? Colors.red.shade700
-                                                : null,
-                                      ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        if (team.position <= 4 || team.position >= 18)
+                                          Container(
+                                            width: 3,
+                                            height: 20,
+                                            margin: const EdgeInsets.only(right: 6),
+                                            decoration: BoxDecoration(
+                                              color: team.position <= 4
+                                                  ? Colors.green.shade700
+                                                  : Colors.red.shade700,
+                                              borderRadius: BorderRadius.circular(2),
+                                            ),
+                                          ),
+                                        Text(
+                                          team.position.toString(),
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: team.position <= 4
+                                                ? Colors.green.shade700
+                                                : team.position >= 18
+                                                    ? Colors.red.shade700
+                                                    : null,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
                                 TableCell(
                                   verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
                                     child: Row(
                                       children: [
                                         Image.network(
                                           team.teamLogo,
-                                          width: 16,
-                                          height: 16,
+                                          width: 20,
+                                          height: 20,
                                           errorBuilder: (context, error, stackTrace) {
-                                            return const Icon(Icons.sports_soccer, size: 16);
+                                            return const Icon(Icons.sports_soccer, size: 20);
                                           },
                                         ),
-                                        const SizedBox(width: 4),
+                                        const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
                                             team.teamName,
                                             overflow: TextOverflow.ellipsis,
                                             maxLines: 1,
                                             style: TextStyle(
-                                              fontSize: team.teamName.length > 20 ? 10 : 12,
+                                              fontSize: team.teamName.length > 20 ? 11 : 13,
+                                              fontWeight: FontWeight.w500,
                                             ),
                                           ),
                                         ),
@@ -301,37 +225,37 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                 TableCell(
                                   verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
                                     child: Text(
                                       team.played.toString(),
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(fontSize: 12),
+                                      style: const TextStyle(fontSize: 13),
                                     ),
                                   ),
                                 ),
                                 TableCell(
                                   verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
                                     child: Text(
                                       '${team.goalsFor}:${team.goalsAgainst}',
                                       textAlign: TextAlign.center,
                                       maxLines: 1,
                                       overflow: TextOverflow.visible,
-                                      style: const TextStyle(fontSize: 12),
+                                      style: const TextStyle(fontSize: 13),
                                     ),
                                   ),
                                 ),
                                 TableCell(
                                   verticalAlignment: TableCellVerticalAlignment.middle,
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
                                     child: Text(
                                       team.points.toString(),
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 14,
+                                        fontSize: 15,
                                       ),
                                     ),
                                   ),
@@ -360,16 +284,25 @@ class _StandingsScreenState extends State<StandingsScreen> {
   }
 
   Widget _buildLegendItem(Color color, String text) {
+    Color barColor;
+    if (color == Colors.green) {
+      barColor = Colors.green.shade700;
+    } else if (color == Colors.red) {
+      barColor = Colors.red.shade700;
+    } else {
+      barColor = color;
+    }
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Container(
-            width: 16,
+            width: 3,
             height: 16,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(4),
+              color: barColor,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(width: 8),

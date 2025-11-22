@@ -46,13 +46,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: LocalizationService.translate('app_version'),
             subtitle: '1.0.0',
           ),
-          _buildSettingsTile(
-            icon: Icons.feedback,
-            title: LocalizationService.translate('feedback'),
-            subtitle: LocalizationService.translate('feedback_subtitle'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showFeedbackDialog(),
-          ),
         ],
       ),
     );
@@ -91,74 +84,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showFeedbackDialog() {
-    final TextEditingController feedbackController = TextEditingController();
-    String selectedType = LocalizationService.translate('bug');
-    final List<String> feedbackTypes = [
-      LocalizationService.translate('bug'), 
-      LocalizationService.translate('improvement'), 
-      LocalizationService.translate('general_feedback')
-    ];
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(LocalizationService.translate('feedback_title')),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(LocalizationService.translate('feedback_type')),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: selectedType,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                  items: feedbackTypes.map((type) => DropdownMenuItem(
-                    value: type,
-                    child: Text(type),
-                  )).toList(),
-                  onChanged: (value) => setState(() => selectedType = value!),
-                ),
-                const SizedBox(height: 16),
-                Text(LocalizationService.translate('your_message')),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: feedbackController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    hintText: LocalizationService.translate('feedback_placeholder'),
-                    contentPadding: const EdgeInsets.all(12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(LocalizationService.translate('cancel')),
-            ),
-            TextButton(
-              onPressed: () {
-                if (feedbackController.text.trim().isNotEmpty) {
-                  Navigator.of(context).pop();
-                  // TODO: Odeslat zpětnou vazbu na server
-                }
-              },
-              child: Text(LocalizationService.translate('send')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 

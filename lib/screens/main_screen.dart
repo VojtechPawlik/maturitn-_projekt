@@ -270,6 +270,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -827,6 +828,17 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildDateSection(DateTime date, List<Match> matches, bool isSelected) {
+    // Seřadit zápasy: nejdřív ty s oblíbenými týmy
+    final sortedMatches = List<Match>.from(matches);
+    sortedMatches.sort((a, b) {
+      final aHasFavorite = _favoriteTeams.contains(a.homeTeam) || _favoriteTeams.contains(a.awayTeam);
+      final bHasFavorite = _favoriteTeams.contains(b.homeTeam) || _favoriteTeams.contains(b.awayTeam);
+      
+      if (aHasFavorite && !bHasFavorite) return -1;
+      if (!aHasFavorite && bHasFavorite) return 1;
+      return 0; // Zachovat původní pořadí pro zápasy se stejnou prioritou
+    });
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -893,7 +905,7 @@ class _MainScreenState extends State<MainScreen> {
             ),
           )
         else
-          ...matches.map((match) => _buildMatchCardFromMatch(match)),
+          ...sortedMatches.map((match) => _buildMatchCardFromMatch(match)),
         const SizedBox(height: 8),
       ],
     );
@@ -1028,11 +1040,17 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildMatchCardFromMatch(Match match) {
     final timeStr = _formatMatchTime(match);
     final isLive = match.isLive;
+    final hasFavoriteTeam = _favoriteTeams.contains(match.homeTeam) || _favoriteTeams.contains(match.awayTeam);
     
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: isLive ? 4 : 2,
-      color: isLive ? Colors.red.withOpacity(0.05) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isLive 
+            ? const BorderSide(color: Colors.red, width: 2)
+            : BorderSide.none,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1057,6 +1075,14 @@ class _MainScreenState extends State<MainScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                if (hasFavoriteTeam) ...[
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.favorite,
+                    size: 14,
+                    color: Colors.red,
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -1157,7 +1183,7 @@ class _MainScreenState extends State<MainScreen> {
             if (match.venue.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                '📍 ${match.venue}${match.city.isNotEmpty ? ', ${match.city}' : ''}',
+                '${match.venue}${match.city.isNotEmpty ? ', ${match.city}' : ''}',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey[600],
