@@ -286,6 +286,186 @@ class ApiFootballService {
     }
   }
 
+  // Načíst detailní informace o zápase
+  Future<MatchDetails?> getMatchDetails(int fixtureId) async {
+    if (_apiKey == null) {
+      await initializeApiKey();
+    }
+
+    try {
+      final url = '$_baseUrl/fixtures?id=$fixtureId';
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'x-rapidapi-key': _apiKey ?? '',
+          'x-rapidapi-host': 'v3.football.api-sports.io',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['errors'] != null && data['errors'].isNotEmpty) {
+          return null;
+        }
+
+        if (data['response'] == null || data['response'].isEmpty) {
+          return null;
+        }
+
+        final fixture = data['response'][0];
+        final fixtureData = fixture['fixture'];
+        final events = fixture['events'] as List? ?? [];
+        final statistics = fixture['statistics'] as List? ?? [];
+        final lineups = fixture['lineups'] as List? ?? [];
+
+        // Parsovat góly
+        final List<Goal> goals = [];
+        for (var event in events) {
+          if (event['type']['name'] == 'Goal') {
+            final team = event['team']['id'] == fixtureData['teams']['home']['id'] ? 'home' : 'away';
+            final player = event['player']['name'] ?? '';
+            final minute = event['time']['elapsed'] ?? 0;
+            final detail = event['detail']?.toString() ?? '';
+            final isOwnGoal = detail.contains('Own Goal');
+            final isPenalty = detail.contains('Penalty');
+            
+            goals.add(Goal(
+              minute: minute,
+              player: player,
+              team: team,
+              isOwnGoal: isOwnGoal,
+              isPenalty: isPenalty,
+            ));
+          }
+        }
+
+        // Parsovat karty
+        final List<MatchCard> cards = [];
+        for (var event in events) {
+          if (event['type']['name'] == 'Card') {
+            final team = event['team']['id'] == fixtureData['teams']['home']['id'] ? 'home' : 'away';
+            final player = event['player']['name'] ?? '';
+            final minute = event['time']['elapsed'] ?? 0;
+            final type = event['detail'] == 'Yellow Card' ? 'yellow' : 'red';
+            
+            cards.add(MatchCard(
+              minute: minute,
+              player: player,
+              team: team,
+              type: type,
+            ));
+          }
+        }
+
+        // Parsovat střídání
+        final List<Substitution> substitutions = [];
+        for (var event in events) {
+          if (event['type']['name'] == 'subst') {
+            final team = event['team']['id'] == fixtureData['teams']['home']['id'] ? 'home' : 'away';
+            // V API: player je hráč, který odchází, assist je hráč, který přichází
+            final playerOut = event['player']['name'] ?? '';
+            final assist = event['assist'];
+            final playerIn = assist != null ? (assist['name'] ?? '') : '';
+            final minute = event['time']['elapsed'] ?? 0;
+            
+            if (playerOut.isNotEmpty && playerIn.isNotEmpty) {
+              substitutions.add(Substitution(
+                minute: minute,
+                playerOut: playerOut,
+                playerIn: playerIn,
+                team: team,
+              ));
+            }
+          }
+        }
+
+        // Parsovat statistiky
+        final Map<String, int> homeStats = {};
+        final Map<String, int> awayStats = {};
+        
+        for (var stat in statistics) {
+          final teamId = stat['team']['id'];
+          final isHome = teamId == fixtureData['teams']['home']['id'];
+          
+          for (var statItem in stat['statistics'] ?? []) {
+            final statName = statItem['type'] ?? '';
+            final statValue = statItem['value'] is int 
+                ? statItem['value'] 
+                : (int.tryParse(statItem['value'].toString()) ?? 0);
+            
+            if (isHome) {
+              homeStats[statName] = statValue;
+            } else {
+              awayStats[statName] = statValue;
+            }
+          }
+        }
+
+        // Parsovat sestavy
+        Lineup homeLineup = Lineup(formation: '', startingXI: [], substitutes: []);
+        Lineup awayLineup = Lineup(formation: '', startingXI: [], substitutes: []);
+        
+        for (var lineup in lineups) {
+          final teamId = lineup['team']['id'];
+          final isHome = teamId == fixtureData['teams']['home']['id'];
+          
+          final formation = lineup['formation'] ?? '';
+          final startingXI = (lineup['startXI'] as List?)?.map((p) {
+            final player = p['player'];
+            return LineupPlayer(
+              id: player['id'] ?? 0,
+              name: player['name'] ?? '',
+              number: player['number'] ?? 0,
+              position: p['pos'] ?? '',
+              grid: p['grid'],
+            );
+          }).toList() ?? [];
+          
+          final substitutes = (lineup['substitutes'] as List?)?.map((p) {
+            final player = p['player'];
+            return LineupPlayer(
+              id: player['id'] ?? 0,
+              name: player['name'] ?? '',
+              number: player['number'] ?? 0,
+              position: p['pos'] ?? '',
+              grid: p['grid'],
+            );
+          }).toList() ?? [];
+          
+          final lineupObj = Lineup(
+            formation: formation,
+            startingXI: startingXI,
+            substitutes: substitutes,
+          );
+          
+          if (isHome) {
+            homeLineup = lineupObj;
+          } else {
+            awayLineup = lineupObj;
+          }
+        }
+
+        return MatchDetails(
+          fixtureId: fixtureId,
+          goals: goals,
+          cards: cards,
+          substitutions: substitutions,
+          statistics: MatchStatistics(
+            homeStats: homeStats,
+            awayStats: awayStats,
+          ),
+          homeLineup: homeLineup,
+          awayLineup: awayLineup,
+        );
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Načíst hráče týmu
   Future<List<Map<String, dynamic>>> getPlayersFromTeam({
     required int teamId,
@@ -471,6 +651,245 @@ class Match {
       round: map['round'],
       venue: map['venue'],
       city: map['city'],
+    );
+  }
+}
+
+// Model pro detailní informace o zápase
+class MatchDetails {
+  final int fixtureId;
+  final List<Goal> goals;
+  final List<MatchCard> cards;
+  final List<Substitution> substitutions;
+  final MatchStatistics statistics;
+  final Lineup homeLineup;
+  final Lineup awayLineup;
+
+  MatchDetails({
+    required this.fixtureId,
+    required this.goals,
+    required this.cards,
+    required this.substitutions,
+    required this.statistics,
+    required this.homeLineup,
+    required this.awayLineup,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'fixtureId': fixtureId,
+      'goals': goals.map((g) => g.toMap()).toList(),
+      'cards': cards.map((c) => c.toMap()).toList(),
+      'substitutions': substitutions.map((s) => s.toMap()).toList(),
+      'statistics': statistics.toMap(),
+      'homeLineup': homeLineup.toMap(),
+      'awayLineup': awayLineup.toMap(),
+    };
+  }
+
+  factory MatchDetails.fromMap(Map<String, dynamic> map) {
+    return MatchDetails(
+      fixtureId: map['fixtureId'] ?? 0,
+      goals: (map['goals'] as List?)?.map((g) => Goal.fromMap(g)).toList() ?? [],
+      cards: (map['cards'] as List?)?.map((c) => MatchCard.fromMap(c)).toList() ?? [],
+      substitutions: (map['substitutions'] as List?)?.map((s) => Substitution.fromMap(s)).toList() ?? [],
+      statistics: MatchStatistics.fromMap(map['statistics'] ?? {}),
+      homeLineup: Lineup.fromMap(map['homeLineup'] ?? {}),
+      awayLineup: Lineup.fromMap(map['awayLineup'] ?? {}),
+    );
+  }
+}
+
+// Model pro gól
+class Goal {
+  final int minute;
+  final String player;
+  final String team; // 'home' nebo 'away'
+  final bool isOwnGoal;
+  final bool isPenalty;
+
+  Goal({
+    required this.minute,
+    required this.player,
+    required this.team,
+    this.isOwnGoal = false,
+    this.isPenalty = false,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'minute': minute,
+      'player': player,
+      'team': team,
+      'isOwnGoal': isOwnGoal,
+      'isPenalty': isPenalty,
+    };
+  }
+
+  factory Goal.fromMap(Map<String, dynamic> map) {
+    return Goal(
+      minute: map['minute'] ?? 0,
+      player: map['player'] ?? '',
+      team: map['team'] ?? '',
+      isOwnGoal: map['isOwnGoal'] ?? false,
+      isPenalty: map['isPenalty'] ?? false,
+    );
+  }
+}
+
+// Model pro kartu
+class MatchCard {
+  final int minute;
+  final String player;
+  final String team; // 'home' nebo 'away'
+  final String type; // 'yellow' nebo 'red'
+
+  MatchCard({
+    required this.minute,
+    required this.player,
+    required this.team,
+    required this.type,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'minute': minute,
+      'player': player,
+      'team': team,
+      'type': type,
+    };
+  }
+
+  factory MatchCard.fromMap(Map<String, dynamic> map) {
+    return MatchCard(
+      minute: map['minute'] ?? 0,
+      player: map['player'] ?? '',
+      team: map['team'] ?? '',
+      type: map['type'] ?? '',
+    );
+  }
+}
+
+// Model pro střídání
+class Substitution {
+  final int minute;
+  final String playerOut;
+  final String playerIn;
+  final String team; // 'home' nebo 'away'
+
+  Substitution({
+    required this.minute,
+    required this.playerOut,
+    required this.playerIn,
+    required this.team,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'minute': minute,
+      'playerOut': playerOut,
+      'playerIn': playerIn,
+      'team': team,
+    };
+  }
+
+  factory Substitution.fromMap(Map<String, dynamic> map) {
+    return Substitution(
+      minute: map['minute'] ?? 0,
+      playerOut: map['playerOut'] ?? '',
+      playerIn: map['playerIn'] ?? '',
+      team: map['team'] ?? '',
+    );
+  }
+}
+
+// Model pro statistiky zápasu
+class MatchStatistics {
+  final Map<String, int> homeStats;
+  final Map<String, int> awayStats;
+
+  MatchStatistics({
+    required this.homeStats,
+    required this.awayStats,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'homeStats': homeStats,
+      'awayStats': awayStats,
+    };
+  }
+
+  factory MatchStatistics.fromMap(Map<String, dynamic> map) {
+    return MatchStatistics(
+      homeStats: Map<String, int>.from(map['homeStats'] ?? {}),
+      awayStats: Map<String, int>.from(map['awayStats'] ?? {}),
+    );
+  }
+}
+
+// Model pro sestavu
+class Lineup {
+  final String formation;
+  final List<LineupPlayer> startingXI;
+  final List<LineupPlayer> substitutes;
+
+  Lineup({
+    required this.formation,
+    required this.startingXI,
+    required this.substitutes,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'formation': formation,
+      'startingXI': startingXI.map((p) => p.toMap()).toList(),
+      'substitutes': substitutes.map((p) => p.toMap()).toList(),
+    };
+  }
+
+  factory Lineup.fromMap(Map<String, dynamic> map) {
+    return Lineup(
+      formation: map['formation'] ?? '',
+      startingXI: (map['startingXI'] as List?)?.map((p) => LineupPlayer.fromMap(p)).toList() ?? [],
+      substitutes: (map['substitutes'] as List?)?.map((p) => LineupPlayer.fromMap(p)).toList() ?? [],
+    );
+  }
+}
+
+// Model pro hráče v sestavě
+class LineupPlayer {
+  final int id;
+  final String name;
+  final int number;
+  final String position;
+  final String? grid; // Pozice na hřišti (např. "4:3")
+
+  LineupPlayer({
+    required this.id,
+    required this.name,
+    required this.number,
+    required this.position,
+    this.grid,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'number': number,
+      'position': position,
+      'grid': grid,
+    };
+  }
+
+  factory LineupPlayer.fromMap(Map<String, dynamic> map) {
+    return LineupPlayer(
+      id: map['id'] ?? 0,
+      name: map['name'] ?? '',
+      number: map['number'] ?? 0,
+      position: map['position'] ?? '',
+      grid: map['grid'],
     );
   }
 }

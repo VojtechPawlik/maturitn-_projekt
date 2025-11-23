@@ -222,6 +222,50 @@ class FirestoreService {
     }
   }
 
+  // Uložit detailní informace o zápase
+  Future<void> saveMatchDetails(int fixtureId, MatchDetails details) async {
+    try {
+      await _firestore.collection('match_details').doc('fixture_$fixtureId').set({
+        'fixtureId': fixtureId,
+        'updated': FieldValue.serverTimestamp(),
+        ...details.toMap(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      // Chyba při ukládání detailů zápasu
+    }
+  }
+
+  // Načíst detailní informace o zápase
+  Future<MatchDetails?> getMatchDetails(int fixtureId) async {
+    try {
+      final doc = await _firestore.collection('match_details').doc('fixture_$fixtureId').get();
+      
+      if (doc.exists && doc.data() != null) {
+        return MatchDetails.fromMap(doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Načíst a uložit detailní informace o zápase z API
+  Future<MatchDetails?> fetchAndSaveMatchDetails(int fixtureId) async {
+    try {
+      // Načíst z API
+      final details = await _apiFootballService.getMatchDetails(fixtureId);
+      
+      if (details != null) {
+        // Uložit do Firestore
+        await saveMatchDetails(fixtureId, details);
+      }
+      
+      return details;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Smazat zápasy starší než 11 dní
   Future<void> _deleteOldFixtures() async {
     try {

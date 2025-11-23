@@ -164,7 +164,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
                 fontFamily: 'Roboto',
               ),
               tabs: const [
-                Tab(text: 'Základní informace'),
+                Tab(text: 'Informace'),
                 Tab(text: 'Hráči'),
               ],
             ),
@@ -176,7 +176,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
               children: [
                 // Záložka 1: Základní informace
                 _buildInfoTab(),
-                // Záložka 2: Hráči
+                // Záložka 2: Sestavy
                 _buildPlayersTab(),
               ],
             ),

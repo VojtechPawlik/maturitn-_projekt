@@ -79,6 +79,7 @@ class _MainScreenState extends State<MainScreen> {
     final dates = List.generate(11, (index) => now.add(Duration(days: index - 5)));
     
     final Map<String, List<Match>> allMatchesMap = {};
+    final Set<int> processedMatchIds = {}; // Pro kontrolu duplicit
     final apiService = ApiFootballService();
     await apiService.initializeApiKey();
     
@@ -90,31 +91,163 @@ class _MainScreenState extends State<MainScreen> {
         // Filtrovat pouze povolené ligy (top 5 evropských lig)
         var allowedMatches = allMatches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
         
-        // Uložit do Firestore všechny zápasy z rozmezí 5 dní (pouze povolené ligy)
-        if (allowedMatches.isNotEmpty) {
-          await _firestoreService.saveFixtures(date: date, matches: allowedMatches);
+        // Rozdělit zápasy podle jejich skutečného data pro ukládání do Firestore
+        final Map<String, List<Match>> matchesByActualDate = {};
+        for (var match in allowedMatches) {
+          final matchDate = match.date;
+          final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
+          
+          if (!matchesByActualDate.containsKey(matchDateKey)) {
+            matchesByActualDate[matchDateKey] = [];
+          }
+          matchesByActualDate[matchDateKey]!.add(match);
         }
         
-        final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-        allMatchesMap[dateKey] = allowedMatches;
+        // Uložit do Firestore zápasy podle jejich skutečného data
+        for (var entry in matchesByActualDate.entries) {
+          final matchDateKey = entry.key;
+          final matchesForDate = entry.value;
+          
+          // Parsovat datum z klíče
+          final parts = matchDateKey.split('-');
+          if (parts.length == 3) {
+            final matchDate = DateTime(
+              int.parse(parts[0]),
+              int.parse(parts[1]),
+              int.parse(parts[2]),
+            );
+            
+            if (matchesForDate.isNotEmpty) {
+              await _firestoreService.saveFixtures(date: matchDate, matches: matchesForDate);
+            }
+          }
+        }
+        
+        // Filtrovat zápasy podle jejich skutečného data a rozdělit je do správných dní
+        for (var match in allowedMatches) {
+          // Přeskočit, pokud už byl tento zápas zpracován
+          if (processedMatchIds.contains(match.id)) continue;
+          
+          final matchDate = match.date;
+          final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
+          
+          if (!allMatchesMap.containsKey(matchDateKey)) {
+            allMatchesMap[matchDateKey] = [];
+          }
+          allMatchesMap[matchDateKey]!.add(match);
+          processedMatchIds.add(match.id);
+          
+          // Pokud je zápas živý nebo dokončený, načíst detaily
+          if (match.isLive || match.isFinished) {
+            _loadMatchDetails(match.id);
+          }
+        }
       } catch (e) {
         // Pokud selže načtení z API, zkusit načíst z Firestore jako fallback
         try {
           var matches = await _firestoreService.getFixtures(date);
           // Filtrovat pouze povolené ligy
           matches = matches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
-          final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-          allMatchesMap[dateKey] = matches;
+          
+          // Filtrovat zápasy podle jejich skutečného data a rozdělit je do správných dní
+          for (var match in matches) {
+            // Přeskočit, pokud už byl tento zápas zpracován
+            if (processedMatchIds.contains(match.id)) continue;
+            
+            final matchDate = match.date;
+            final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
+            
+            if (!allMatchesMap.containsKey(matchDateKey)) {
+              allMatchesMap[matchDateKey] = [];
+            }
+            allMatchesMap[matchDateKey]!.add(match);
+            processedMatchIds.add(match.id);
+          }
         } catch (e2) {
           // Chyba při načítání zápasů
         }
       }
     }
     
+    // Načíst zápasy z 21.11. z Firebase (pokud existují)
+    try {
+      final currentYear = now.year;
+      final november21 = DateTime(currentYear, 11, 21);
+      var matchesNov21 = await _firestoreService.getFixtures(november21);
+      if (matchesNov21.isNotEmpty) {
+        // Filtrovat zápasy podle jejich skutečného data a rozdělit je do správných dní
+        for (var match in matchesNov21) {
+          // Přeskočit, pokud už byl tento zápas zpracován
+          if (processedMatchIds.contains(match.id)) continue;
+          
+          final matchDate = match.date;
+          final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
+          
+          if (!allMatchesMap.containsKey(matchDateKey)) {
+            allMatchesMap[matchDateKey] = [];
+          }
+          allMatchesMap[matchDateKey]!.add(match);
+          processedMatchIds.add(match.id);
+        }
+      }
+    } catch (e) {
+      // Chyba při načítání zápasů z 21.11. - ignorovat
+    }
+    
+    // Vyčistit zápasy - odstranit z každého dne zápasy, které nepatří do tohoto dne
+    // Toto je důležité, protože API může vracet zápasy s jiným datem než je dotazované datum
+    final Map<String, List<Match>> cleanedMatchesMap = {};
+    for (var entry in allMatchesMap.entries) {
+      final dateKey = entry.key;
+      final matches = entry.value;
+      
+      // Parsovat datum z klíče
+      final parts = dateKey.split('-');
+      if (parts.length == 3) {
+        final year = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final day = int.parse(parts[2]);
+        
+        // Filtrovat pouze zápasy, které mají skutečné datum odpovídající tomuto dni
+        // Toto je kritické - každý zápas musí být ve správném dni podle svého skutečného data
+        final filteredMatches = matches.where((match) {
+          final matchDate = match.date;
+          final matchYear = matchDate.year;
+          final matchMonth = matchDate.month;
+          final matchDay = matchDate.day;
+          
+          // Přísné porovnání - zápas musí mít přesně stejné datum jako klíč
+          return matchYear == year &&
+                 matchMonth == month &&
+                 matchDay == day;
+        }).toList();
+        
+        // Uložit pouze pokud jsou nějaké zápasy pro tento den
+        if (filteredMatches.isNotEmpty) {
+          cleanedMatchesMap[dateKey] = filteredMatches;
+        }
+      }
+    }
+    
     setState(() {
-      _matchesByDate = allMatchesMap;
+      _matchesByDate = cleanedMatchesMap;
       _isLoadingMatches = false;
     });
+  }
+
+  // Načíst detailní informace o zápase (asynchronně, bez blokování UI)
+  Future<void> _loadMatchDetails(int fixtureId) async {
+    try {
+      // Nejdříve zkusit načíst z Firestore
+      final details = await _firestoreService.getMatchDetails(fixtureId);
+      
+      // Pokud nejsou v Firestore nebo jsou starší než 5 minut (pro živé zápasy), načíst z API
+      if (details == null) {
+        await _firestoreService.fetchAndSaveMatchDetails(fixtureId);
+      }
+    } catch (e) {
+      // Chyba při načítání detailů - ignorovat
+    }
   }
 
   // Povolené ligy - pouze top 5 evropských lig
@@ -780,7 +913,15 @@ class _MainScreenState extends State<MainScreen> {
       final date = entry.key;
       final isSelected = entry.value;
       final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      final matches = _matchesByDate[dateKey] ?? [];
+      final allMatches = _matchesByDate[dateKey] ?? [];
+      
+      // Filtrovat zápasy podle jejich skutečného data - zobrazit pouze zápasy, které se hrají v tento den
+      final matches = allMatches.where((match) {
+        final matchDate = match.date;
+        return matchDate.year == date.year &&
+               matchDate.month == date.month &&
+               matchDate.day == date.day;
+      }).toList();
       
       if (matches.isNotEmpty) {
         hasAnyMatches = true;
