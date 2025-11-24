@@ -208,12 +208,21 @@ class FirestoreService {
       final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       final docId = 'fixtures_$dateStr';
       
+      // Filtrovat zápasy - uložit pouze ty, které se skutečně hrají v tento den
+      final filteredMatches = matches.where((match) {
+        final matchDate = match.date;
+        return matchDate.year == date.year &&
+               matchDate.month == date.month &&
+               matchDate.day == date.day;
+      }).toList();
+      
+      // Použít set místo merge, aby se přepsaly všechny staré zápasy
       await _firestore.collection('fixtures').doc(docId).set({
         'date': dateStr,
         'timestamp': Timestamp.fromDate(date),
         'updated': FieldValue.serverTimestamp(),
-        'matches': matches.map((match) => match.toMap()).toList(),
-      }, SetOptions(merge: true));
+        'matches': filteredMatches.map((match) => match.toMap()).toList(),
+      });
       
       // Smazat staré zápasy (starší než 11 dní)
       await _deleteOldFixtures();
@@ -312,8 +321,20 @@ class FirestoreService {
       if (doc.exists) {
         final matches = doc['matches'] as List;
         final allMatches = matches.map((match) => Match.fromMap(match)).toList();
-        // Filtrovat pouze povolené ligy
-        return allMatches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
+        
+        // Filtrovat pouze povolené ligy a zápasy, které se skutečně hrají v tento den
+        return allMatches.where((match) {
+          // Kontrola povolených lig
+          if (!_allowedLeagueIds.contains(match.leagueId)) {
+            return false;
+          }
+          
+          // Kontrola skutečného data zápasu - musí odpovídat požadovanému datu
+          final matchDate = match.date;
+          return matchDate.year == date.year &&
+                 matchDate.month == date.month &&
+                 matchDate.day == date.day;
+        }).toList();
       }
       return [];
     } catch (e) {
@@ -379,7 +400,7 @@ class FirestoreService {
   }
 
   // Načíst a uložit týmy z top 5 lig do Firestore
-  Future<void> fetchAndSaveTeamsFromTopLeagues() async {
+  Future<void> fetchAndSaveTeamsFromTopLeagues({bool includePlayers = false}) async {
     try {
       // Top 5 lig: Premier League, La Liga, Serie A, Bundesliga, Ligue 1
       final leagues = [
@@ -407,6 +428,8 @@ class FirestoreService {
           // Zkontrolovat, jestli tým už existuje
           final existingDoc = await _firestore.collection('teams').doc(teamId).get();
           
+          final apiTeamId = teamData['id'] ?? 0;
+          
           if (!existingDoc.exists) {
             await _firestore.collection('teams').doc(teamId).set({
               'name': teamData['name'],
@@ -418,7 +441,7 @@ class FirestoreService {
               'stadiumCountry': teamData['stadiumCountry'] ?? teamData['country'] ?? '',
               'city': teamData['city'] ?? '',
               'season': currentSeason,
-              'apiTeamId': teamData['id'] ?? 0, // Uložit API team ID
+              'apiTeamId': apiTeamId, // Uložit API team ID
             }, SetOptions(merge: true));
           } else {
             // Aktualizovat existující tým - doplnit chybějící informace
@@ -447,10 +470,53 @@ class FirestoreService {
             
             await _firestore.collection('teams').doc(teamId).update(updateData);
           }
+          
+          // Pokud je zapnuto načítání hráčů, načíst hráče pro tento tým
+          if (includePlayers && apiTeamId > 0) {
+            try {
+              await fetchAndSavePlayers(
+                teamId: teamId,
+                apiTeamId: apiTeamId,
+                season: currentSeason,
+              );
+              // Počkat mezi týmy, aby se nepřekročil API limit
+              await Future.delayed(const Duration(milliseconds: 500));
+            } catch (e) {
+              // Chyba při načítání hráčů - pokračovat s dalším týmem
+            }
+          }
         }
         
         // Počkat mezi ligami, aby se nepřekročil API limit
         await Future.delayed(const Duration(seconds: 2));
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  // Načíst a uložit hráče pro všechny týmy
+  Future<void> fetchAndSavePlayersForAllTeams() async {
+    try {
+      // Načíst všechny týmy z Firestore
+      final teams = await getTeams();
+      final currentSeason = 2023;
+      
+      for (var team in teams) {
+        if (team.apiTeamId > 0) {
+          try {
+            await fetchAndSavePlayers(
+              teamId: team.id,
+              apiTeamId: team.apiTeamId,
+              season: team.season > 0 ? team.season : currentSeason,
+            );
+            
+            // Počkat mezi týmy, aby se nepřekročil API limit
+            await Future.delayed(const Duration(milliseconds: 500));
+          } catch (e) {
+            // Chyba při načítání hráčů - pokračovat s dalším týmem
+          }
+        }
       }
     } catch (e) {
       rethrow;

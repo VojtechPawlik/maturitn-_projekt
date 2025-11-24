@@ -124,11 +124,26 @@ class _MainScreenState extends State<MainScreen> {
         }
         
         // Filtrovat zápasy podle jejich skutečného data a rozdělit je do správných dní
+        final today = DateTime.now();
         for (var match in allowedMatches) {
           // Přeskočit, pokud už byl tento zápas zpracován
           if (processedMatchIds.contains(match.id)) continue;
           
           final matchDate = match.date;
+          
+          // Dodatečná kontrola - pokud načítáme zápasy pro dnešní datum, ujistit se, že se tam nedostanou zápasy z včerejška
+          if (date.year == today.year && 
+              date.month == today.month && 
+              date.day == today.day) {
+            final yesterday = today.subtract(const Duration(days: 1));
+            if (matchDate.year == yesterday.year &&
+                matchDate.month == yesterday.month &&
+                matchDate.day == yesterday.day) {
+              // Zápas z včerejška - přeskočit
+              continue;
+            }
+          }
+          
           final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
           
           if (!allMatchesMap.containsKey(matchDateKey)) {
@@ -144,10 +159,9 @@ class _MainScreenState extends State<MainScreen> {
         }
       } catch (e) {
         // Pokud selže načtení z API, zkusit načíst z Firestore jako fallback
+        // getFixtures už filtruje podle skutečného data, takže načteme pouze zápasy pro tento den
         try {
           var matches = await _firestoreService.getFixtures(date);
-          // Filtrovat pouze povolené ligy
-          matches = matches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
           
           // Filtrovat zápasy podle jejich skutečného data a rozdělit je do správných dní
           for (var match in matches) {
@@ -157,11 +171,24 @@ class _MainScreenState extends State<MainScreen> {
             final matchDate = match.date;
             final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
             
+            // getFixtures už filtruje podle skutečného data, takže matchDate by mělo odpovídat date
+            // Ale pro jistotu zkontrolujeme
+            if (matchDate.year != date.year ||
+                matchDate.month != date.month ||
+                matchDate.day != date.day) {
+              continue; // Zápas nepatří do tohoto dne
+            }
+            
             if (!allMatchesMap.containsKey(matchDateKey)) {
               allMatchesMap[matchDateKey] = [];
             }
             allMatchesMap[matchDateKey]!.add(match);
             processedMatchIds.add(match.id);
+            
+            // Pokud je zápas živý nebo dokončený, načíst detaily
+            if (match.isLive || match.isFinished) {
+              _loadMatchDetails(match.id);
+            }
           }
         } catch (e2) {
           // Chyba při načítání zápasů
@@ -197,7 +224,13 @@ class _MainScreenState extends State<MainScreen> {
     // Vyčistit zápasy - odstranit z každého dne zápasy, které nepatří do tohoto dne
     // Toto je důležité, protože API může vracet zápasy s jiným datem než je dotazované datum
     final Map<String, List<Match>> cleanedMatchesMap = {};
-    for (var entry in allMatchesMap.entries) {
+    final Set<int> globalSeenIds = {}; // Globální kontrola - každý zápas pouze v jednom dni
+    
+    // Seřadit klíče podle data, aby se zápasy zobrazovaly v chronologickém pořadí
+    final sortedEntries = allMatchesMap.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    
+    for (var entry in sortedEntries) {
       final dateKey = entry.key;
       final matches = entry.value;
       
@@ -208,19 +241,26 @@ class _MainScreenState extends State<MainScreen> {
         final month = int.parse(parts[1]);
         final day = int.parse(parts[2]);
         
-        // Filtrovat pouze zápasy, které mají skutečné datum odpovídající tomuto dni
+        // Filtrovat pouze zápasy, které mají skutečné datum přesně odpovídající tomuto dni
         // Toto je kritické - každý zápas musí být ve správném dni podle svého skutečného data
-        final filteredMatches = matches.where((match) {
+        final filteredMatches = <Match>[];
+        for (var match in matches) {
           final matchDate = match.date;
-          final matchYear = matchDate.year;
-          final matchMonth = matchDate.month;
-          final matchDay = matchDate.day;
-          
           // Přísné porovnání - zápas musí mít přesně stejné datum jako klíč
-          return matchYear == year &&
-                 matchMonth == month &&
-                 matchDay == day;
-        }).toList();
+          final matchesDate = matchDate.year == year &&
+                 matchDate.month == month &&
+                 matchDate.day == day;
+          
+          if (!matchesDate) {
+            continue;
+          }
+          
+          // Kontrola duplicit - zápas se zobrazí pouze v prvním dni, kde se objeví
+          if (!globalSeenIds.contains(match.id)) {
+            globalSeenIds.add(match.id);
+            filteredMatches.add(match);
+          }
+        }
         
         // Uložit pouze pokud jsou nějaké zápasy pro tento den
         if (filteredMatches.isNotEmpty) {

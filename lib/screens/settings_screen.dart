@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/localization_service.dart';
+import '../services/firestore_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -10,11 +11,43 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
+  final FirestoreService _firestoreService = FirestoreService();
+  bool _isLoadingPlayers = false;
 
   void _saveNotifications(bool value) {
     setState(() {
       _notificationsEnabled = value;
     });
+  }
+
+  Future<void> _loadPlayersForAllTeams() async {
+    setState(() => _isLoadingPlayers = true);
+    
+    try {
+      await _firestoreService.fetchAndSavePlayersForAllTeams();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Hráči pro všechny týmy byly úspěšně načteni'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Chyba při načítání hráčů: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingPlayers = false);
+      }
+    }
   }
 
   @override
@@ -37,6 +70,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: _notificationsEnabled,
               onChanged: _saveNotifications,
             ),
+          ),
+          
+          const SizedBox(height: 24),
+          _buildSectionHeader('Data'),
+          _buildSettingsTile(
+            icon: Icons.people,
+            title: 'Načíst hráče pro všechny týmy',
+            subtitle: 'Načte soupisky hráčů pro všechny týmy z API',
+            trailing: _isLoadingPlayers
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _isLoadingPlayers ? null : _loadPlayersForAllTeams,
           ),
           
           const SizedBox(height: 24),
