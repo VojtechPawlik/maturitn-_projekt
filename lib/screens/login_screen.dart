@@ -90,8 +90,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result != null && mounted) {
         // Nastavit session po úspěšném přihlášení
         await SessionManager().loginUser(
-          email: 'google.user@gmail.com', // TODO: Získat skutečný email z Google
-          nickname: 'Google uživatel',
+          email: result.user?.email ?? 'google.user@gmail.com',
+          nickname: result.user?.displayName ?? 'Google uživatel',
         );
         
         Navigator.of(context).pop(true);
@@ -117,8 +117,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result != null && mounted) {
         // Nastavit session po úspěšném přihlášení
         await SessionManager().loginUser(
-          email: 'apple.user@icloud.com', // TODO: Získat skutečný email z Apple
-          nickname: 'Apple uživatel',
+          email: result.user?.email ?? 'apple.user@icloud.com',
+          nickname: result.user?.displayName ?? 'Apple uživatel',
         );
         
         Navigator.of(context).pop(true);

@@ -20,7 +20,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _currentIndex = 2; // Hlavní stránka je uprostřed (index 2)
   DateTime _selectedDate = DateTime.now();
   final ScrollController _calendarController = ScrollController();
@@ -41,22 +41,43 @@ class _MainScreenState extends State<MainScreen> {
   bool _isLoadingTeams = false;
   
   bool _isLoggedIn = false;
+  
+  // Animace pro logo v AppBar
+  late AnimationController _titleAnimationController;
+  late Animation<double> _titleSlideAnimation;
 
   @override
   void initState() {
     super.initState();
+    
+    _titleAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _titleSlideAnimation = Tween<double>(
+      begin: -1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _titleAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _titleAnimationController.forward();
+    });
+    
     _loadLeagues();
     _initializeApp();
     _loadAllMatchesForCalendar();
     _loadTeams();
     _loadFavoriteTeams();
     _setupAutoUpdate();
-    // Vycentrovat kalendář na dnešní datum
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerCalendarOnToday();
     });
   }
-
+  
   // Načíst týmy z Firestore
   Future<void> _loadTeams() async {
     try {
@@ -71,7 +92,6 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  // Načíst zápasy pro všechny dny v kalendáři (5 dní zpět, dnes, 5 dní dopředu)
   Future<void> _loadAllMatchesForCalendar() async {
     setState(() => _isLoadingMatches = true);
     
@@ -103,12 +123,9 @@ class _MainScreenState extends State<MainScreen> {
           matchesByActualDate[matchDateKey]!.add(match);
         }
         
-        // Uložit do Firestore zápasy podle jejich skutečného data
         for (var entry in matchesByActualDate.entries) {
           final matchDateKey = entry.key;
           final matchesForDate = entry.value;
-          
-          // Parsovat datum z klíče
           final parts = matchDateKey.split('-');
           if (parts.length == 3) {
             final matchDate = DateTime(
@@ -123,15 +140,12 @@ class _MainScreenState extends State<MainScreen> {
           }
         }
         
-        // Filtrovat zápasy podle jejich skutečného data a rozdělit je do správných dní
         final today = DateTime.now();
         for (var match in allowedMatches) {
-          // Přeskočit, pokud už byl tento zápas zpracován
           if (processedMatchIds.contains(match.id)) continue;
           
           final matchDate = match.date;
           
-          // Dodatečná kontrola - pokud načítáme zápasy pro dnešní datum, ujistit se, že se tam nedostanou zápasy z včerejška
           if (date.year == today.year && 
               date.month == today.month && 
               date.day == today.day) {
@@ -139,7 +153,6 @@ class _MainScreenState extends State<MainScreen> {
             if (matchDate.year == yesterday.year &&
                 matchDate.month == yesterday.month &&
                 matchDate.day == yesterday.day) {
-              // Zápas z včerejška - přeskočit
               continue;
             }
           }
@@ -152,31 +165,24 @@ class _MainScreenState extends State<MainScreen> {
           allMatchesMap[matchDateKey]!.add(match);
           processedMatchIds.add(match.id);
           
-          // Pokud je zápas živý nebo dokončený, načíst detaily
           if (match.isLive || match.isFinished) {
             _loadMatchDetails(match.id);
           }
         }
       } catch (e) {
-        // Pokud selže načtení z API, zkusit načíst z Firestore jako fallback
-        // getFixtures už filtruje podle skutečného data, takže načteme pouze zápasy pro tento den
         try {
           var matches = await _firestoreService.getFixtures(date);
           
-          // Filtrovat zápasy podle jejich skutečného data a rozdělit je do správných dní
           for (var match in matches) {
-            // Přeskočit, pokud už byl tento zápas zpracován
             if (processedMatchIds.contains(match.id)) continue;
             
             final matchDate = match.date;
             final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
             
-            // getFixtures už filtruje podle skutečného data, takže matchDate by mělo odpovídat date
-            // Ale pro jistotu zkontrolujeme
             if (matchDate.year != date.year ||
                 matchDate.month != date.month ||
                 matchDate.day != date.day) {
-              continue; // Zápas nepatří do tohoto dne
+              continue;
             }
             
             if (!allMatchesMap.containsKey(matchDateKey)) {
@@ -185,48 +191,20 @@ class _MainScreenState extends State<MainScreen> {
             allMatchesMap[matchDateKey]!.add(match);
             processedMatchIds.add(match.id);
             
-            // Pokud je zápas živý nebo dokončený, načíst detaily
             if (match.isLive || match.isFinished) {
               _loadMatchDetails(match.id);
             }
           }
         } catch (e2) {
-          // Chyba při načítání zápasů
+          // Ignorovat chyby při načítání z Firestore
         }
       }
     }
     
-    // Načíst zápasy z 21.11. z Firebase (pokud existují)
-    try {
-      final currentYear = now.year;
-      final november21 = DateTime(currentYear, 11, 21);
-      var matchesNov21 = await _firestoreService.getFixtures(november21);
-      if (matchesNov21.isNotEmpty) {
-        // Filtrovat zápasy podle jejich skutečného data a rozdělit je do správných dní
-        for (var match in matchesNov21) {
-          // Přeskočit, pokud už byl tento zápas zpracován
-          if (processedMatchIds.contains(match.id)) continue;
-          
-          final matchDate = match.date;
-          final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
-          
-          if (!allMatchesMap.containsKey(matchDateKey)) {
-            allMatchesMap[matchDateKey] = [];
-          }
-          allMatchesMap[matchDateKey]!.add(match);
-          processedMatchIds.add(match.id);
-        }
-      }
-    } catch (e) {
-      // Chyba při načítání zápasů z 21.11. - ignorovat
-    }
     
-    // Vyčistit zápasy - odstranit z každého dne zápasy, které nepatří do tohoto dne
-    // Toto je důležité, protože API může vracet zápasy s jiným datem než je dotazované datum
     final Map<String, List<Match>> cleanedMatchesMap = {};
-    final Set<int> globalSeenIds = {}; // Globální kontrola - každý zápas pouze v jednom dni
+    final Set<int> globalSeenIds = {};
     
-    // Seřadit klíče podle data, aby se zápasy zobrazovaly v chronologickém pořadí
     final sortedEntries = allMatchesMap.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     
@@ -234,19 +212,15 @@ class _MainScreenState extends State<MainScreen> {
       final dateKey = entry.key;
       final matches = entry.value;
       
-      // Parsovat datum z klíče
       final parts = dateKey.split('-');
       if (parts.length == 3) {
         final year = int.parse(parts[0]);
         final month = int.parse(parts[1]);
         final day = int.parse(parts[2]);
         
-        // Filtrovat pouze zápasy, které mají skutečné datum přesně odpovídající tomuto dni
-        // Toto je kritické - každý zápas musí být ve správném dni podle svého skutečného data
         final filteredMatches = <Match>[];
         for (var match in matches) {
           final matchDate = match.date;
-          // Přísné porovnání - zápas musí mít přesně stejné datum jako klíč
           final matchesDate = matchDate.year == year &&
                  matchDate.month == month &&
                  matchDate.day == day;
@@ -255,14 +229,12 @@ class _MainScreenState extends State<MainScreen> {
             continue;
           }
           
-          // Kontrola duplicit - zápas se zobrazí pouze v prvním dni, kde se objeví
           if (!globalSeenIds.contains(match.id)) {
             globalSeenIds.add(match.id);
             filteredMatches.add(match);
           }
         }
         
-        // Uložit pouze pokud jsou nějaké zápasy pro tento den
         if (filteredMatches.isNotEmpty) {
           cleanedMatchesMap[dateKey] = filteredMatches;
         }
@@ -275,42 +247,34 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  // Načíst detailní informace o zápase (asynchronně, bez blokování UI)
   Future<void> _loadMatchDetails(int fixtureId) async {
     try {
-      // Nejdříve zkusit načíst z Firestore
       final details = await _firestoreService.getMatchDetails(fixtureId);
-      
-      // Pokud nejsou v Firestore nebo jsou starší než 5 minut (pro živé zápasy), načíst z API
       if (details == null) {
         await _firestoreService.fetchAndSaveMatchDetails(fixtureId);
       }
     } catch (e) {
-      // Chyba při načítání detailů - ignorovat
+      // Ignorovat chyby při načítání detailů
     }
   }
 
-  // Povolené ligy - pouze top 5 evropských lig
   static const Set<int> _allowedLeagueIds = {
-    39,   // Premier League (Anglická)
-    140,  // La Liga (Španělská)
-    135,  // Serie A (Italská)
-    78,   // Bundesliga (Německá)
-    61,   // Ligue 1 (Francouzská)
+    39,   // Premier League
+    140,  // La Liga
+    135,  // Serie A
+    78,   // Bundesliga
+    61,   // Ligue 1
   };
 
   void _setupAutoUpdate() {
-    // Přidat ligy k automatické aktualizaci
-    // Pouze hlavní evropské ligy
-    // Aktuální sezóna
     final currentSeason = 2023;
     
     final Map<String, Map<String, int>> leagueConfigs = {
-      'premier_league': {'apiLeagueId': 39, 'season': currentSeason},      // Anglická Premier League
-      'la_liga': {'apiLeagueId': 140, 'season': currentSeason},            // Španělská La Liga
-      'serie_a': {'apiLeagueId': 135, 'season': currentSeason},            // Italská Serie A
-      'bundesliga': {'apiLeagueId': 78, 'season': currentSeason},          // Německá Bundesliga
-      'ligue_1': {'apiLeagueId': 61, 'season': currentSeason},             // Francouzská Ligue 1
+      'premier_league': {'apiLeagueId': 39, 'season': currentSeason},
+      'la_liga': {'apiLeagueId': 140, 'season': currentSeason},
+      'serie_a': {'apiLeagueId': 135, 'season': currentSeason},
+      'bundesliga': {'apiLeagueId': 78, 'season': currentSeason},
+      'ligue_1': {'apiLeagueId': 61, 'season': currentSeason},
     };
 
     for (var entry in leagueConfigs.entries) {
@@ -321,7 +285,6 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    // Spustit automatickou aktualizaci každých 6 hodin (360 minut)
     _autoUpdateService.startAutoUpdate(intervalMinutes: 360);
   }
 
@@ -347,7 +310,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _initializeApp() async {
-    // Načíst uloženou session při startu aplikace
     await SessionManager().loadSavedSession();
     _checkAuthStatus();
   }
@@ -355,9 +317,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Znovu zkontrolovat auth stav při návratu na tuto obrazovku
     _checkAuthStatus();
-    // Znovu načíst zápasy (5 dní zpět, dnes, 5 dní dopředu)
     _loadAllMatchesForCalendar();
   }
 
@@ -378,12 +338,12 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    _titleAnimationController.dispose();
     _calendarController.dispose();
     super.dispose();
   }
 
   void _checkAuthStatus() {
-    // Použít SessionManager pro kontrolu přihlášení
     setState(() {
       _isLoggedIn = SessionManager().isLoggedIn;
     });
@@ -399,16 +359,13 @@ class _MainScreenState extends State<MainScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const ProfileScreen()),
     ).then((result) {
-      // Pokud se uživatel odhlásil v profilu nebo uložil změny, aktualizuj stav
       if (result == true) {
         _checkAuthStatus();
-        // Aktualizovat UI pro zobrazení nového profilového obrázku
         setState(() {});
       }
     });
   }
 
-  // Načíst oblíbené týmy z SharedPreferences
   Future<void> _loadFavoriteTeams() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -448,7 +405,18 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Image.asset('assets/images/text.png', height: 70),
+        title: AnimatedBuilder(
+          animation: _titleSlideAnimation,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(
+                MediaQuery.of(context).size.width * _titleSlideAnimation.value,
+                0,
+              ),
+              child: Image.asset('assets/images/text.png', height: 70),
+            );
+          },
+        ),
         centerTitle: true,
         backgroundColor: const Color(0xFF3E5F44),
         foregroundColor: Colors.white,
@@ -1391,7 +1359,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// Model pro soutěž
 class Competition {
   final String id;
   final String name;

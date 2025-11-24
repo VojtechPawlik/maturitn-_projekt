@@ -74,114 +74,126 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(widget.team.name),
-        backgroundColor: const Color(0xFF3E5F44),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Column(
-        children: [
-          // Hlavička s logem
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFF3E5F44),
-                  const Color(0xFF3E5F44).withOpacity(0.8),
-                ],
-              ),
-            ),
-            child: Column(
-              children: [
-                // Logo týmu
-                widget.team.logoUrl.startsWith('http')
-                    ? Image.network(
-                        widget.team.logoUrl,
-                        height: 120,
-                        width: 120,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.sports_soccer,
-                            size: 120,
-                            color: Colors.white,
-                          );
-                        },
-                      )
-                    : const Icon(
-                        Icons.sports_soccer,
-                        size: 120,
-                        color: Colors.white,
+            children: [
+              // Hlavička s logem
+              Container(
+                width: double.infinity,
+                height: MediaQuery.of(context).size.height * 0.25 + MediaQuery.of(context).padding.top,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  bottom: 16,
+                  left: 20,
+                  right: 20,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFF1E3A2E),
+                      const Color(0xFF2D4A3E),
+                      const Color(0xFF3E5F44),
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+                child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Logo týmu
+                          widget.team.logoUrl.startsWith('http')
+                              ? Image.network(
+                                  widget.team.logoUrl,
+                                  height: 140,
+                                  width: 140,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.sports_soccer,
+                                      size: 140,
+                                      color: Colors.white,
+                                    );
+                                  },
+                                )
+                              : Icon(
+                                  Icons.sports_soccer,
+                                  size: 140,
+                                  color: Colors.white,
+                                ),
+                          const SizedBox(height: 12),
+                          Flexible(
+                            child: Text(
+                              widget.team.name,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                const SizedBox(height: 16),
-                Text(
-                  widget.team.name,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    ),
+              ),
+              // TabBar pod logem
+              Container(
+                color: const Color(0xFF3E5F44).withOpacity(0.1),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    color: const Color(0xFF3E5F44),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  widget.team.league,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Colors.white70,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicatorPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  labelColor: Colors.white,
+                  unselectedLabelColor: const Color(0xFF3E5F44),
+                  labelStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    fontFamily: 'Roboto',
                   ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.3,
+                    fontFamily: 'Roboto',
+                  ),
+                  tabs: const [
+                    Tab(text: 'Informace'),
+                    Tab(text: 'Hráči'),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          // TabBar pod logem
-          Container(
-            color: const Color(0xFF3E5F44),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
               ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              indicatorPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              labelStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-                fontFamily: 'Roboto',
+              // Obsah záložek
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Záložka 1: Základní informace
+                    _buildInfoTab(),
+                    // Záložka 2: Sestavy
+                    _buildPlayersTab(),
+                  ],
+                ),
               ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.3,
-                fontFamily: 'Roboto',
-              ),
-              tabs: const [
-                Tab(text: 'Informace'),
-                Tab(text: 'Hráči'),
-              ],
-            ),
-          ),
-          // Obsah záložek
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Záložka 1: Základní informace
-                _buildInfoTab(),
-                // Záložka 2: Sestavy
-                _buildPlayersTab(),
-              ],
-            ),
-          ),
-        ],
+            ],
       ),
     );
   }
@@ -191,19 +203,31 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
                     widget.team.stadium.isNotEmpty || 
                     widget.team.city.isNotEmpty ||
                     widget.team.stadiumCountry.isNotEmpty ||
-                    widget.team.season > 0;
+                    widget.team.season > 0 ||
+                    widget.team.league.isNotEmpty;
 
     if (!hasInfo) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text(
-            'Základní informace budou brzy dostupné',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 16,
-            ),
-            textAlign: TextAlign.center,
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Základní informace budou brzy dostupné',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       );
@@ -212,95 +236,71 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (widget.team.league.isNotEmpty) ...[
-            _buildSectionTitle('Liga'),
-            _buildInfoCard(
+          if (widget.team.league.isNotEmpty)
+            _buildSimpleInfoCard(
               icon: Icons.emoji_events,
-              title: 'Název ligy',
+              iconColor: Colors.grey[600]!,
+              label: 'Liga',
               value: widget.team.league,
             ),
-          ],
-          if (widget.team.country.isNotEmpty) ...[
-            _buildSectionTitle('Země'),
-            _buildInfoCard(
+          if (widget.team.season > 0)
+            _buildSimpleInfoCard(
+              icon: Icons.calendar_today,
+              iconColor: Colors.grey[600]!,
+              label: 'Sezóna',
+              value: '${widget.team.season}/${widget.team.season + 1}',
+            ),
+          if (widget.team.country.isNotEmpty)
+            _buildSimpleInfoCard(
               icon: Icons.flag,
-              title: 'Země týmu',
+              iconColor: Colors.grey[600]!,
+              label: 'Země',
               value: widget.team.country,
             ),
-          ],
-          if (widget.team.season > 0) ...[
-            _buildSectionTitle('Sezóna'),
-            _buildInfoCard(
-              icon: Icons.calendar_today,
-              title: 'Sezóna',
-              value: widget.team.season.toString(),
+          if (widget.team.city.isNotEmpty)
+            _buildSimpleInfoCard(
+              icon: Icons.location_city,
+              iconColor: Colors.grey[600]!,
+              label: 'Město',
+              value: widget.team.city,
             ),
-          ],
-          if (widget.team.stadium.isNotEmpty || widget.team.city.isNotEmpty || widget.team.stadiumCountry.isNotEmpty) ...[
-            _buildSectionTitle('Stadion'),
-            if (widget.team.stadium.isNotEmpty)
-              _buildInfoCard(
-                icon: Icons.stadium,
-                title: 'Název stadionu',
-                value: widget.team.stadium,
-              ),
-            if (widget.team.city.isNotEmpty)
-              _buildInfoCard(
-                icon: Icons.location_city,
-                title: 'Město',
-                value: widget.team.city,
-              ),
-            if (widget.team.stadiumCountry.isNotEmpty)
-              _buildInfoCard(
-                icon: Icons.public,
-                title: 'Země stadionu',
-                value: widget.team.stadiumCountry,
-              ),
-          ],
+          if (widget.team.stadium.isNotEmpty)
+            _buildSimpleInfoCard(
+              icon: Icons.stadium,
+              iconColor: Colors.grey[600]!,
+              label: 'Stadion',
+              value: widget.team.stadium,
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12, top: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF3E5F44),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard({
+  Widget _buildSimpleInfoCard({
     required IconData icon,
-    required String title,
+    required Color iconColor,
+    required String label,
     required String value,
   }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF3E5F44).withOpacity(0.3),
+          width: 2,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF3E5F44).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: const Color(0xFF3E5F44),
-                size: 28,
-              ),
+            Icon(
+              icon,
+              color: iconColor,
+              size: 24,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -308,10 +308,10 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -319,7 +319,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
                   Text(
                     value,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: Colors.black87,
                     ),

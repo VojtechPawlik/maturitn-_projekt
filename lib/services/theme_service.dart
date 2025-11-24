@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Globální téma pro jednoduchost
-ValueNotifier<bool> isDarkModeNotifier = ValueNotifier<bool>(false);
-
 class ThemeService {
   static final ThemeService _instance = ThemeService._internal();
   factory ThemeService() => _instance;

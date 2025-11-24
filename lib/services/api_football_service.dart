@@ -524,7 +524,6 @@ class ApiFootballService {
   }
 }
 
-// Model pro tým v tabulce
 class StandingTeam {
   final int position;
   final String teamName;
@@ -569,7 +568,6 @@ class StandingTeam {
   }
 }
 
-// Model pro zápas
 class Match {
   final int id;
   final String homeTeam;
@@ -655,7 +653,6 @@ class Match {
   }
 }
 
-// Model pro detailní informace o zápase
 class MatchDetails {
   final int fixtureId;
   final List<Goal> goals;
@@ -700,7 +697,6 @@ class MatchDetails {
   }
 }
 
-// Model pro gól
 class Goal {
   final int minute;
   final String player;
@@ -737,7 +733,6 @@ class Goal {
   }
 }
 
-// Model pro kartu
 class MatchCard {
   final int minute;
   final String player;
@@ -770,7 +765,6 @@ class MatchCard {
   }
 }
 
-// Model pro střídání
 class Substitution {
   final int minute;
   final String playerOut;
@@ -803,7 +797,6 @@ class Substitution {
   }
 }
 
-// Model pro statistiky zápasu
 class MatchStatistics {
   final Map<String, int> homeStats;
   final Map<String, int> awayStats;
@@ -828,7 +821,6 @@ class MatchStatistics {
   }
 }
 
-// Model pro sestavu
 class Lineup {
   final String formation;
   final List<LineupPlayer> startingXI;
@@ -857,7 +849,6 @@ class Lineup {
   }
 }
 
-// Model pro hráče v sestavě
 class LineupPlayer {
   final int id;
   final String name;

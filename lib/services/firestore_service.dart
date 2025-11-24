@@ -495,6 +495,171 @@ class FirestoreService {
     }
   }
   
+  // Aktualizovat informace o městě, zemi a stadionu pro všechny týmy
+  Future<void> updateTeamLocationInfo() async {
+    try {
+      // Data pro všechny týmy z top 5 lig
+      final teamDataMap = {
+        // Premier League (England)
+        'arsenal': {'city': 'London', 'country': 'England', 'stadium': 'Emirates Stadium'},
+        'aston villa': {'city': 'Birmingham', 'country': 'England', 'stadium': 'Villa Park'},
+        'bournemouth': {'city': 'Bournemouth', 'country': 'England', 'stadium': 'Vitality Stadium'},
+        'brentford': {'city': 'London', 'country': 'England', 'stadium': 'Gtech Community Stadium'},
+        'brighton & hove albion': {'city': 'Brighton', 'country': 'England', 'stadium': 'American Express Community Stadium'},
+        'burnley': {'city': 'Burnley', 'country': 'England', 'stadium': 'Turf Moor'},
+        'chelsea': {'city': 'London', 'country': 'England', 'stadium': 'Stamford Bridge'},
+        'crystal palace': {'city': 'London', 'country': 'England', 'stadium': 'Selhurst Park'},
+        'everton': {'city': 'Liverpool', 'country': 'England', 'stadium': 'Goodison Park'},
+        'fulham': {'city': 'London', 'country': 'England', 'stadium': 'Craven Cottage'},
+        'liverpool': {'city': 'Liverpool', 'country': 'England', 'stadium': 'Anfield'},
+        'luton town': {'city': 'Luton', 'country': 'England', 'stadium': 'Kenilworth Road'},
+        'manchester city': {'city': 'Manchester', 'country': 'England', 'stadium': 'Etihad Stadium'},
+        'manchester united': {'city': 'Manchester', 'country': 'England', 'stadium': 'Old Trafford'},
+        'newcastle united': {'city': 'Newcastle upon Tyne', 'country': 'England', 'stadium': 'St. James\' Park'},
+        'nottingham forest': {'city': 'Nottingham', 'country': 'England', 'stadium': 'City Ground'},
+        'sheffield united': {'city': 'Sheffield', 'country': 'England', 'stadium': 'Bramall Lane'},
+        'tottenham hotspur': {'city': 'London', 'country': 'England', 'stadium': 'Tottenham Hotspur Stadium'},
+        'west ham united': {'city': 'London', 'country': 'England', 'stadium': 'London Stadium'},
+        'wolverhampton wanderers': {'city': 'Wolverhampton', 'country': 'England', 'stadium': 'Molineux Stadium'},
+        
+        // La Liga (Spain)
+        'alavés': {'city': 'Vitoria-Gasteiz', 'country': 'Spain', 'stadium': 'Mendizorroza'},
+        'almería': {'city': 'Almería', 'country': 'Spain', 'stadium': 'Power Horse Stadium'},
+        'athletic club': {'city': 'Bilbao', 'country': 'Spain', 'stadium': 'San Mamés'},
+        'atlético madrid': {'city': 'Madrid', 'country': 'Spain', 'stadium': 'Cívitas Metropolitano'},
+        'barcelona': {'city': 'Barcelona', 'country': 'Spain', 'stadium': 'Estadi Olímpic Lluís Companys'},
+        'cádiz': {'city': 'Cádiz', 'country': 'Spain', 'stadium': 'Nuevo Mirandilla'},
+        'celta vigo': {'city': 'Vigo', 'country': 'Spain', 'stadium': 'Balaídos'},
+        'getafe': {'city': 'Getafe (Madrid area)', 'country': 'Spain', 'stadium': 'Coliseum'},
+        'girona': {'city': 'Girona', 'country': 'Spain', 'stadium': 'Montilivi'},
+        'granada': {'city': 'Granada', 'country': 'Spain', 'stadium': 'Nuevo Los Cármenes'},
+        'las palmas': {'city': 'Las Palmas', 'country': 'Spain', 'stadium': 'Estadio Gran Canaria'},
+        'mallorca': {'city': 'Palma de Mallorca', 'country': 'Spain', 'stadium': 'Estadi Mallorca Son Moix'},
+        'osasuna': {'city': 'Pamplona', 'country': 'Spain', 'stadium': 'El Sadar'},
+        'rayo vallecano': {'city': 'Madrid', 'country': 'Spain', 'stadium': 'Vallecas Stadium'},
+        'real betis': {'city': 'Seville', 'country': 'Spain', 'stadium': 'Estadio Benito Villamarín'},
+        'real madrid': {'city': 'Madrid', 'country': 'Spain', 'stadium': 'Santiago Bernabéu'},
+        'real sociedad': {'city': 'San Sebastián', 'country': 'Spain', 'stadium': 'Reale Arena'},
+        'sevilla': {'city': 'Seville', 'country': 'Spain', 'stadium': 'Ramón Sánchez-Pizjuán'},
+        'valencia': {'city': 'Valencia', 'country': 'Spain', 'stadium': 'Mestalla'},
+        'villarreal': {'city': 'Villarreal', 'country': 'Spain', 'stadium': 'Estadio de la Cerámica'},
+        
+        // Bundesliga (Germany)
+        'fc augsburg': {'city': 'Augsburg', 'country': 'Germany', 'stadium': 'WWK Arena'},
+        'union berlin': {'city': 'Berlin', 'country': 'Germany', 'stadium': 'Stadion An der Alten Försterei'},
+        'vfl bochum': {'city': 'Bochum', 'country': 'Germany', 'stadium': 'Vonovia Ruhrstadion'},
+        'werder bremen': {'city': 'Bremen', 'country': 'Germany', 'stadium': 'Weserstadion'},
+        'darmstadt 98': {'city': 'Darmstadt', 'country': 'Germany', 'stadium': 'Stadion am Böllenfalltor'},
+        'borussia dortmund': {'city': 'Dortmund', 'country': 'Germany', 'stadium': 'Signal Iduna Park'},
+        'eintracht frankfurt': {'city': 'Frankfurt', 'country': 'Germany', 'stadium': 'Deutsche Bank Park'},
+        'sc freiburg': {'city': 'Freiburg', 'country': 'Germany', 'stadium': 'Europa-Park Stadion'},
+        'heidenheim': {'city': 'Heidenheim', 'country': 'Germany', 'stadium': 'Voith-Arena'},
+        'hoffenheim': {'city': 'Sinsheim', 'country': 'Germany', 'stadium': 'PreZero Arena'},
+        'fc köln': {'city': 'Cologne', 'country': 'Germany', 'stadium': 'RheinEnergieStadion'},
+        'rb leipzig': {'city': 'Leipzig', 'country': 'Germany', 'stadium': 'Red Bull Arena'},
+        'bayer leverkusen': {'city': 'Leverkusen', 'country': 'Germany', 'stadium': 'BayArena'},
+        'mainz 05': {'city': 'Mainz', 'country': 'Germany', 'stadium': 'Mewa Arena'},
+        'borussia mönchengladbach': {'city': 'Mönchengladbach', 'country': 'Germany', 'stadium': 'Borussia-Park'},
+        'bayern munich': {'city': 'Munich', 'country': 'Germany', 'stadium': 'Allianz Arena'},
+        'vfb stuttgart': {'city': 'Stuttgart', 'country': 'Germany', 'stadium': 'MHPArena'},
+        'vfl wolfsburg': {'city': 'Wolfsburg', 'country': 'Germany', 'stadium': 'Volkswagen Arena'},
+        
+        // Serie A (Italy)
+        'atalanta': {'city': 'Bergamo', 'country': 'Italy', 'stadium': 'Gewiss Stadium'},
+        'bologna': {'city': 'Bologna', 'country': 'Italy', 'stadium': 'Stadio Renato Dall\'Ara'},
+        'cagliari': {'city': 'Cagliari', 'country': 'Italy', 'stadium': 'Unipol Domus'},
+        'empoli': {'city': 'Empoli', 'country': 'Italy', 'stadium': 'Stadio Carlo Castellani'},
+        'fiorentina': {'city': 'Florence', 'country': 'Italy', 'stadium': 'Stadio Artemio Franchi'},
+        'frosinone': {'city': 'Frosinone', 'country': 'Italy', 'stadium': 'Stadio Benito Stirpe'},
+        'genoa': {'city': 'Genoa', 'country': 'Italy', 'stadium': 'Stadio Luigi Ferraris'},
+        'hellas verona': {'city': 'Verona', 'country': 'Italy', 'stadium': 'Stadio Marcantonio Bentegodi'},
+        'inter milan': {'city': 'Milan', 'country': 'Italy', 'stadium': 'San Siro'},
+        'juventus': {'city': 'Turin', 'country': 'Italy', 'stadium': 'Allianz Stadium'},
+        'lazio': {'city': 'Rome', 'country': 'Italy', 'stadium': 'Stadio Olimpico'},
+        'lecce': {'city': 'Lecce', 'country': 'Italy', 'stadium': 'Stadio Via del Mare'},
+        'ac milan': {'city': 'Milan', 'country': 'Italy', 'stadium': 'San Siro'},
+        'monza': {'city': 'Monza', 'country': 'Italy', 'stadium': 'U-Power Stadium (Stadio Brianteo)'},
+        'napoli': {'city': 'Naples', 'country': 'Italy', 'stadium': 'Stadio Diego Armando Maradona'},
+        'roma': {'city': 'Rome', 'country': 'Italy', 'stadium': 'Stadio Olimpico'},
+        'salernitana': {'city': 'Salerno', 'country': 'Italy', 'stadium': 'Stadio Arechi'},
+        'sassuolo': {'city': 'Reggio Emilia', 'country': 'Italy', 'stadium': 'Mapei Stadium'},
+        'torino': {'city': 'Turin', 'country': 'Italy', 'stadium': 'Stadio Olimpico Grande Torino'},
+        'udinese': {'city': 'Udine', 'country': 'Italy', 'stadium': 'Stadio Friuli'},
+        
+        // Ligue 1 (France)
+        'brest': {'city': 'Brest', 'country': 'France', 'stadium': 'Stade Francis-Le Blé'},
+        'clermont foot': {'city': 'Clermont-Ferrand', 'country': 'France', 'stadium': 'Stade Gabriel Montpied'},
+        'le havre': {'city': 'Le Havre', 'country': 'France', 'stadium': 'Stade Océane'},
+        'lens': {'city': 'Lens', 'country': 'France', 'stadium': 'Stade Bollaert-Delelis'},
+        'lille': {'city': 'Villeneuve-d\'Ascq', 'country': 'France', 'stadium': 'Stade Pierre-Mauroy'},
+        'lorient': {'city': 'Lorient', 'country': 'France', 'stadium': 'Stade du Moustoir'},
+        'lyon': {'city': 'Lyon', 'country': 'France', 'stadium': 'Groupama Stadium'},
+        'marseille': {'city': 'Marseille', 'country': 'France', 'stadium': 'Orange Vélodrome'},
+        'monaco': {'city': 'Monaco', 'country': 'Monaco', 'stadium': 'Stade Louis II'},
+        'montpellier': {'city': 'Montpellier', 'country': 'France', 'stadium': 'Stade de la Mosson'},
+        'nantes': {'city': 'Nantes', 'country': 'France', 'stadium': 'Stade de la Beaujoire'},
+        'nice': {'city': 'Nice', 'country': 'France', 'stadium': 'Allianz Riviera'},
+        'paris saint-germain': {'city': 'Paris', 'country': 'France', 'stadium': 'Parc des Princes'},
+        'reims': {'city': 'Reims', 'country': 'France', 'stadium': 'Stade Auguste-Delaune'},
+        'rennes': {'city': 'Rennes', 'country': 'France', 'stadium': 'Roazhon Park'},
+        'strasbourg': {'city': 'Strasbourg', 'country': 'France', 'stadium': 'Stade de la Meinau'},
+        'toulouse': {'city': 'Toulouse', 'country': 'France', 'stadium': 'Stadium Municipal'},
+      };
+      
+      // Načíst všechny týmy z Firestore
+      final teams = await getTeams();
+      
+      for (var team in teams) {
+        // Normalizovat název týmu pro vyhledávání (lowercase, odstranit diakritiku)
+        final teamNameNormalized = team.name.toLowerCase()
+            .replaceAll('á', 'a')
+            .replaceAll('é', 'e')
+            .replaceAll('í', 'i')
+            .replaceAll('ó', 'o')
+            .replaceAll('ú', 'u')
+            .replaceAll('ñ', 'n')
+            .replaceAll('ü', 'u')
+            .replaceAll('ö', 'o')
+            .replaceAll('ä', 'a')
+            .replaceAll('ß', 'ss')
+            .replaceAll('ç', 'c')
+            .replaceAll('à', 'a')
+            .replaceAll('è', 'e')
+            .replaceAll('ì', 'i')
+            .replaceAll('ò', 'o')
+            .replaceAll('ù', 'u');
+        
+        // Najít odpovídající data
+        Map<String, String>? teamInfo;
+        
+        // Zkusit najít přesný match
+        if (teamDataMap.containsKey(teamNameNormalized)) {
+          teamInfo = teamDataMap[teamNameNormalized];
+        } else {
+          // Zkusit najít částečný match
+          for (var entry in teamDataMap.entries) {
+            if (teamNameNormalized.contains(entry.key) || entry.key.contains(teamNameNormalized)) {
+              teamInfo = entry.value;
+              break;
+            }
+          }
+        }
+        
+        if (teamInfo != null) {
+          // Aktualizovat tým v Firestore
+          await _firestore.collection('teams').doc(team.id).update({
+            'city': teamInfo['city'] ?? '',
+            'country': teamInfo['country'] ?? '',
+            'stadium': teamInfo['stadium'] ?? '',
+            'stadiumCountry': teamInfo['country'] ?? '',
+          });
+        }
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Načíst a uložit hráče pro všechny týmy
   Future<void> fetchAndSavePlayersForAllTeams() async {
     try {
@@ -714,7 +879,6 @@ class FirestoreService {
   }
 }
 
-// Model pro ligu
 class League {
   final String id;
   final String name;
@@ -729,7 +893,6 @@ class League {
   });
 }
 
-// Model pro tým
 class Team {
   final String id;
   final String name;
@@ -758,7 +921,6 @@ class Team {
   });
 }
 
-// Model pro hráče
 class Player {
   final int id;
   final String name;
