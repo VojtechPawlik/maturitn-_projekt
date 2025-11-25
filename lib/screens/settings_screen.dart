@@ -13,7 +13,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   final FirestoreService _firestoreService = FirestoreService();
   bool _isLoadingPlayers = false;
-  bool _isUpdatingTeamInfo = false;
 
   void _saveNotifications(bool value) {
     setState(() {
@@ -30,7 +29,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Hráči pro všechny týmy byly úspěšně načteni'),
+            content: Text('Hráči pro všechny týmy byly úspěšně načteni do nové kolekce'),
             backgroundColor: Colors.green,
           ),
         );
@@ -47,36 +46,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       if (mounted) {
         setState(() => _isLoadingPlayers = false);
-      }
-    }
-  }
-
-  Future<void> _updateTeamLocationInfo() async {
-    setState(() => _isUpdatingTeamInfo = true);
-    
-    try {
-      await _firestoreService.updateTeamLocationInfo();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Informace o městech, zemích a stadionech byly úspěšně aktualizovány'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Chyba při aktualizaci: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isUpdatingTeamInfo = false);
       }
     }
   }
@@ -108,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSettingsTile(
             icon: Icons.people,
             title: 'Načíst hráče pro všechny týmy',
-            subtitle: 'Načte soupisky hráčů pro všechny týmy z API',
+            subtitle: 'Načte hráče z API a uloží je do kolekce players',
             trailing: _isLoadingPlayers
                 ? const SizedBox(
                     width: 20,
@@ -117,19 +86,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   )
                 : const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _isLoadingPlayers ? null : _loadPlayersForAllTeams,
-          ),
-          _buildSettingsTile(
-            icon: Icons.location_on,
-            title: 'Aktualizovat informace o týmech',
-            subtitle: 'Doplní města, země a stadiony pro všechny týmy',
-            trailing: _isUpdatingTeamInfo
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _isUpdatingTeamInfo ? null : _updateTeamLocationInfo,
           ),
           
           const SizedBox(height: 24),

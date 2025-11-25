@@ -661,8 +661,11 @@ class FirestoreService {
   }
 
   // Načíst a uložit hráče pro všechny týmy
-  Future<void> fetchAndSavePlayersForAllTeams() async {
+  Future<void> fetchAndSavePlayersForAllTeams({bool includeProfiles = false}) async {
     try {
+      // Nejdříve zajistit, že všechny týmy mají apiTeamId
+      await _ensureAllTeamsHaveApiId();
+      
       // Načíst všechny týmy z Firestore
       final teams = await getTeams();
       final currentSeason = 2023;
@@ -674,6 +677,7 @@ class FirestoreService {
               teamId: team.id,
               apiTeamId: team.apiTeamId,
               season: team.season > 0 ? team.season : currentSeason,
+              includeProfiles: includeProfiles,
             );
             
             // Počkat mezi týmy, aby se nepřekročil API limit
@@ -685,6 +689,93 @@ class FirestoreService {
       }
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Načíst a uložit profily hráčů pro všechny týmy
+  Future<void> fetchAndSavePlayerProfilesForAllTeams() async {
+    try {
+      // Načíst všechny týmy z Firestore
+      final teams = await getTeams();
+      final currentSeason = 2023;
+      
+      for (var team in teams) {
+        try {
+          await fetchAndSavePlayerProfiles(
+            teamId: team.id,
+            season: team.season > 0 ? team.season : currentSeason,
+          );
+          
+          // Počkat mezi týmy, aby se nepřekročil API limit
+          await Future.delayed(const Duration(milliseconds: 500));
+        } catch (e) {
+          // Chyba při načítání profilů - pokračovat s dalším týmem
+        }
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Zajistit, že všechny týmy mají apiTeamId
+  Future<void> _ensureAllTeamsHaveApiId() async {
+    try {
+      final teams = await getTeams();
+      final leagues = [
+        {'id': 39, 'name': 'Premier League'},
+        {'id': 140, 'name': 'La Liga'},
+        {'id': 135, 'name': 'Serie A'},
+        {'id': 78, 'name': 'Bundesliga'},
+        {'id': 61, 'name': 'Ligue 1'},
+      ];
+      
+      final currentSeason = 2023;
+      final teamsWithoutApiId = teams.where((team) => team.apiTeamId == 0).toList();
+      
+      if (teamsWithoutApiId.isEmpty) {
+        return; // Všechny týmy už mají apiTeamId
+      }
+      
+      // Pro každou ligu načíst týmy z API a doplnit chybějící apiTeamId
+      for (var league in leagues) {
+        try {
+          final apiTeams = await _apiFootballService.getTeamsFromLeague(
+            leagueId: league['id'] as int,
+            season: currentSeason,
+          );
+          
+          // Pro každý tým z Firestore najít odpovídající tým z API
+          for (var firestoreTeam in teamsWithoutApiId) {
+            if (firestoreTeam.league.toLowerCase().contains(league['name']!.toString().toLowerCase())) {
+              // Najít tým v API podle názvu
+              final matchingApiTeam = apiTeams.firstWhere(
+                (apiTeam) {
+                  final apiName = (apiTeam['name'] ?? '').toString().toLowerCase();
+                  final firestoreName = firestoreTeam.name.toLowerCase();
+                  return apiName == firestoreName || 
+                         apiName.contains(firestoreName) || 
+                         firestoreName.contains(apiName);
+                },
+                orElse: () => <String, dynamic>{},
+              );
+              
+              if (matchingApiTeam.isNotEmpty && matchingApiTeam['id'] != null) {
+                // Aktualizovat apiTeamId v Firestore
+                await _firestore.collection('teams').doc(firestoreTeam.id).update({
+                  'apiTeamId': matchingApiTeam['id'],
+                });
+              }
+            }
+          }
+          
+          // Počkat mezi ligami
+          await Future.delayed(const Duration(seconds: 1));
+        } catch (e) {
+          // Chyba při načítání týmů z API - pokračovat s další ligou
+        }
+      }
+    } catch (e) {
+      // Chyba při zajišťování apiTeamId - pokračovat s načítáním hráčů
     }
   }
 
@@ -763,9 +854,10 @@ class FirestoreService {
     required String teamId,
     required int apiTeamId,
     required int season,
+    bool includeProfiles = false,
   }) async {
     if (apiTeamId == 0) {
-      return;
+      throw Exception('Tým nemá platné API ID');
     }
 
     try {
@@ -776,17 +868,181 @@ class FirestoreService {
       );
 
       if (players.isEmpty) {
-        return;
+        throw Exception('Žádní hráči nebyli nalezeni pro tento tým');
       }
 
-      // Uložit do Firestore
-      await _firestore.collection('teams').doc(teamId).collection('players').doc('squad_$season').set({
+      // Pokud jsou požadovány profily, načíst je pro každého hráče
+      if (includeProfiles) {
+        for (var player in players) {
+          final playerId = player['id'] ?? 0;
+          if (playerId > 0) {
+            try {
+              final profile = await _apiFootballService.getPlayerProfile(
+                playerId: playerId,
+              );
+              if (profile != null) {
+                player['profile'] = profile;
+              }
+              // Počkat mezi požadavky, aby se nepřekročil API limit
+              await Future.delayed(const Duration(milliseconds: 300));
+            } catch (e) {
+              // Chyba při načítání profilu - pokračovat s dalším hráčem
+            }
+          }
+        }
+      }
+
+      // Uložit do nové kolekce players
+      final batch = _firestore.batch();
+      
+      for (var player in players) {
+        final playerId = player['id'] ?? 0;
+        if (playerId > 0) {
+          // Vytvořit unikátní ID: teamId_playerId_season
+          final docId = '${teamId}_${playerId}_$season';
+          final playerRef = _firestore.collection('players').doc(docId);
+          
+          batch.set(playerRef, {
+            'id': playerId,
+            'teamId': teamId,
+            'apiTeamId': apiTeamId,
+            'season': season,
+            'name': player['name'] ?? '',
+            'number': player['number'] ?? 0,
+            'position': player['position'] ?? '',
+            'age': player['age'] ?? 0,
+            'nationality': player['nationality'] ?? '',
+            'photo': player['photo'] ?? '',
+            'updated': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      }
+      
+      await batch.commit();
+      
+      // Také uložit do staré struktury pro kompatibilitu
+      await _firestore
+          .collection('teams')
+          .doc(teamId)
+          .collection('players')
+          .doc('squad_$season')
+          .set({
         'season': season,
+        'teamId': teamId,
+        'apiTeamId': apiTeamId,
         'updated': FieldValue.serverTimestamp(),
         'players': players,
-      }, SetOptions(merge: true));
+        'playerCount': players.length,
+      }, SetOptions(merge: false));
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Načíst a uložit profily hráčů pro tým
+  Future<void> fetchAndSavePlayerProfiles({
+    required String teamId,
+    required int season,
+  }) async {
+    try {
+      // Načíst hráče z Firestore
+      final players = await getPlayers(
+        teamId: teamId,
+        season: season,
+      );
+
+      if (players.isEmpty) {
+        throw Exception('Žádní hráči nebyli nalezeni pro tento tým');
+      }
+
+      // Pro každého hráče načíst profil
+      for (var player in players) {
+        if (player.id > 0) {
+          try {
+            final profile = await _apiFootballService.getPlayerProfile(
+              playerId: player.id,
+            );
+            
+            if (profile != null) {
+              // Uložit profil do nové struktury (do dokumentu hráče)
+              final playerDocId = '${teamId}_${player.id}_$season';
+              await _firestore
+                  .collection('players')
+                  .doc(playerDocId)
+                  .update({
+                'statistics': profile['statistics'] ?? [],
+                'height': profile['height'] ?? '',
+                'weight': profile['weight'] ?? '',
+                'birth': profile['birth'] ?? {},
+                'updated': FieldValue.serverTimestamp(),
+              });
+              
+              // Také uložit do staré struktury pro kompatibilitu
+              await _firestore
+                  .collection('teams')
+                  .doc(teamId)
+                  .collection('players')
+                  .doc('squad_$season')
+                  .collection('profiles')
+                  .doc('player_${player.id}')
+                  .set({
+                'playerId': player.id,
+                'updated': FieldValue.serverTimestamp(),
+                ...profile,
+              }, SetOptions(merge: true));
+            }
+            
+            // Počkat mezi požadavky, aby se nepřekročil API limit
+            await Future.delayed(const Duration(milliseconds: 300));
+          } catch (e) {
+            // Chyba při načítání profilu - pokračovat s dalším hráčem
+          }
+        }
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Načíst profil hráče z Firestore
+  Future<Map<String, dynamic>?> getPlayerProfile({
+    required String teamId,
+    required int playerId,
+    required int season,
+  }) async {
+    try {
+      // Nejdříve zkusit načíst z nové struktury (v dokumentu hráče)
+      final playerDocId = '${teamId}_${playerId}_$season';
+      final playerDoc = await _firestore
+          .collection('players')
+          .doc(playerDocId)
+          .get();
+
+      if (playerDoc.exists && playerDoc.data() != null) {
+        final data = playerDoc.data()!;
+        // Pokud má hráč profil přímo v dokumentu
+        if (data.containsKey('statistics') || data.containsKey('profile')) {
+          return data;
+        }
+      }
+
+      // Pokud není v nové struktuře, zkusit ze staré struktury
+      final doc = await _firestore
+          .collection('teams')
+          .doc(teamId)
+          .collection('players')
+          .doc('squad_$season')
+          .collection('profiles')
+          .doc('player_$playerId')
+          .get();
+
+      if (!doc.exists || doc.data() == null) {
+        return null;
+      }
+
+      return doc.data();
+    } catch (e) {
+      return null;
     }
   }
 
@@ -796,6 +1052,29 @@ class FirestoreService {
     required int season,
   }) async {
     try {
+      // Nejdříve zkusit načíst z nové kolekce players
+      final snapshot = await _firestore
+          .collection('players')
+          .where('teamId', isEqualTo: teamId)
+          .where('season', isEqualTo: season)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          return Player(
+            id: _parseIntFromMap(data['id']) ?? 0,
+            name: data['name']?.toString() ?? '',
+            number: _parseIntFromMap(data['number']) ?? 0,
+            position: data['position']?.toString() ?? '',
+            age: _parseIntFromMap(data['age']) ?? 0,
+            nationality: data['nationality']?.toString() ?? '',
+            photo: data['photo']?.toString() ?? '',
+          );
+        }).toList();
+      }
+
+      // Pokud nejsou v nové kolekci, zkusit načíst ze staré struktury
       final doc = await _firestore
           .collection('teams')
           .doc(teamId)
@@ -808,26 +1087,39 @@ class FirestoreService {
       }
 
       final data = doc.data()!;
-      final playersData = data['players'] as List?;
+      final playersData = data['players'];
 
-      if (playersData == null || playersData.isEmpty) {
+      if (playersData == null || !(playersData is List) || playersData.isEmpty) {
         return [];
       }
 
       return playersData.map((playerData) {
+        // Zkontrolovat, jestli je playerData Map
+        if (playerData is! Map) {
+          return null;
+        }
+        
         return Player(
-          id: playerData['id'] ?? 0,
-          name: playerData['name'] ?? '',
-          number: playerData['number'] ?? 0,
-          position: playerData['position'] ?? '',
-          age: playerData['age'] ?? 0,
-          nationality: playerData['nationality'] ?? '',
-          photo: playerData['photo'] ?? '',
+          id: _parseIntFromMap(playerData['id']) ?? 0,
+          name: playerData['name']?.toString() ?? '',
+          number: _parseIntFromMap(playerData['number']) ?? 0,
+          position: playerData['position']?.toString() ?? '',
+          age: _parseIntFromMap(playerData['age']) ?? 0,
+          nationality: playerData['nationality']?.toString() ?? '',
+          photo: playerData['photo']?.toString() ?? '',
         );
-      }).toList();
+      }).whereType<Player>().toList();
     } catch (e) {
       return [];
     }
+  }
+
+  // Pomocná metoda pro parsování int z různých typů
+  int? _parseIntFromMap(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   // Aktualizovat názvy lig u všech týmů

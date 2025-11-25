@@ -335,50 +335,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             // Profilový obrázek
             Center(
-                child: GestureDetector(
+              child: GestureDetector(
                 onTap: _selectProfileImage,
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _profileImageUrl == null || _profileImageUrl!.isEmpty 
-                        ? Colors.grey[200] 
-                        : Colors.transparent,
-                    border: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                        ? Border.all(
-                            color: const Color(0xFF3E5F44),
-                            width: 2,
-                          )
-                        : null,
-                  ),
-                  child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                      ? const Icon(
-                          Icons.person,
-                          size: 60,
-                          color: Color(0xFF3E5F44),
-                        )
-                      : ClipOval(
-                          child: _profileImageUrl!.startsWith('http')
-                              ? Image.network(
-                                  _profileImageUrl!,
-                                  width: 120,
-                                  height: 120,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _profileImageUrl == null || _profileImageUrl!.isEmpty 
+                            ? Colors.grey[200] 
+                            : Colors.transparent,
+                        border: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                            ? Border.all(
+                                color: const Color(0xFF3E5F44),
+                                width: 2,
+                              )
+                            : null,
+                      ),
+                      child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                          ? const Icon(
+                              Icons.person,
+                              size: 60,
+                              color: Color(0xFF3E5F44),
+                            )
+                          : ClipOval(
+                              child: _profileImageUrl!.startsWith('http')
+                                  ? Image.network(
+                                      _profileImageUrl!,
+                                      width: 120,
+                                      height: 120,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return const Icon(
+                                          Icons.person,
+                                          size: 60,
+                                          color: Color(0xFF3E5F44),
+                                        );
+                                      },
+                                    )
+                                  : const Icon(
                                       Icons.person,
                                       size: 60,
                                       color: Color(0xFF3E5F44),
-                                    );
-                                  },
-                                )
-                              : const Icon(
-                                  Icons.person,
-                                  size: 60,
-                                  color: Color(0xFF3E5F44),
-                                ),
+                                    ),
+                            ),
+                    ),
+                    // Ikona pro úpravu
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF3E5F44),
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 3,
+                          ),
                         ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

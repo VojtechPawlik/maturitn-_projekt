@@ -39,6 +39,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   // Týmy pro zobrazení oblíbených
   List<Team> _allTeams = [];
   bool _isLoadingTeams = false;
+  Map<String, int> _teamPositions = {}; // Mapování názvu týmu na pozici v tabulce
   
   bool _isLoggedIn = false;
   
@@ -87,8 +88,48 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         _allTeams = teams;
         _isLoadingTeams = false;
       });
+      // Načíst pozice týmů v tabulkách
+      _loadTeamPositions();
     } catch (e) {
       setState(() => _isLoadingTeams = false);
+    }
+  }
+
+  // Načíst pozice týmů v tabulkách
+  Future<void> _loadTeamPositions() async {
+    try {
+      final positions = <String, int>{};
+      final currentSeason = 2023;
+      
+      // Mapování lig na jejich ID
+      final leagues = [
+        {'id': 'premier_league', 'apiId': 39},
+        {'id': 'la_liga', 'apiId': 140},
+        {'id': 'serie_a', 'apiId': 135},
+        {'id': 'bundesliga', 'apiId': 78},
+        {'id': 'ligue_1', 'apiId': 61},
+      ];
+      
+      for (var league in leagues) {
+        try {
+          final standings = await _firestoreService.getStandings(
+            leagueId: league['id'] as String,
+            season: currentSeason,
+          );
+          
+          for (var standing in standings) {
+            positions[standing.teamName] = standing.position;
+          }
+        } catch (e) {
+          // Chyba při načítání tabulky - pokračovat
+        }
+      }
+      
+      setState(() {
+        _teamPositions = positions;
+      });
+    } catch (e) {
+      // Chyba při načítání pozic
     }
   }
 
@@ -625,53 +666,133 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       );
     }
 
-    return ListView.builder(
+    return GridView.builder(
       padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 1,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 2.5,
+      ),
       itemCount: favoriteTeamsList.length,
       itemBuilder: (context, index) {
         final team = favoriteTeamsList[index];
-        final isFavorite = _favoriteTeams.contains(team.name);
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: team.logoUrl.startsWith('http')
-                ? Image.network(
-                    team.logoUrl,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.sports_soccer, size: 40);
-                    },
-                  )
-                : const Icon(Icons.sports_soccer, size: 40),
-            title: Text(
-              team.name,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+        final position = _teamPositions[team.name];
+        
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TeamDetailScreen(team: team),
+              ),
+            );
+          },
+          child: Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(
+                color: Color(0xFF3E5F44),
+                width: 3,
+              ),
             ),
-            subtitle: Text(team.league),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: isFavorite ? Colors.red : Colors.grey,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Stack(
+                children: [
+                  // Text uprostřed
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Název týmu
+                        Text(
+                          team.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        // Liga
+                        Text(
+                          team.league,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        // Pozice v tabulce
+                        if (position != null)
+                          Text(
+                            '$position. místo',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF3E5F44),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                      ],
+                    ),
                   ),
-                  onPressed: () => _toggleFavoriteTeam(team.name),
-                ),
-                const Icon(Icons.arrow_forward_ios, size: 16),
-              ],
+                  // Logo týmu vlevo
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        child: team.logoUrl.startsWith('http')
+                            ? Image.network(
+                                team.logoUrl,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.sports_soccer,
+                                    size: 60,
+                                    color: Color(0xFF3E5F44),
+                                  );
+                                },
+                              )
+                            : const Icon(
+                                Icons.sports_soccer,
+                                size: 60,
+                                color: Color(0xFF3E5F44),
+                              ),
+                      ),
+                    ),
+                  ),
+                  // Srdíčko vpravo
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          _toggleFavoriteTeam(team.name);
+                        },
+                        child: const Icon(
+                          Icons.favorite,
+                          color: Colors.red,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TeamDetailScreen(team: team),
-                ),
-              );
-            },
           ),
         );
       },
