@@ -1,9 +1,105 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'api_football_service.dart';
+import 'news_api_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ApiFootballService _apiFootballService = ApiFootballService();
+  final NewsApiService _newsApiService = NewsApiService();
+
+  // ---------------------------
+  // NOVINKY (NEWS)
+  // ---------------------------
+
+  /// Načíst novinky z kolekce `news` (jednorázově)
+  Future<List<News>> getNews({int limit = 20}) async {
+    try {
+      final snapshot = await _firestore
+          .collection('news')
+          .orderBy('publishedAt', descending: true)
+          .limit(limit)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return News(
+          id: doc.id,
+          title: (data['title'] ?? '').toString(),
+          content: (data['content'] ?? '').toString(),
+          imageUrl: (data['imageUrl'] ?? '').toString(),
+          source: (data['source'] ?? '').toString(),
+          url: (data['url'] ?? '').toString(),
+          publishedAt: (data['publishedAt'] is Timestamp)
+              ? (data['publishedAt'] as Timestamp).toDate()
+              : DateTime.tryParse((data['publishedAt'] ?? '').toString()),
+        );
+      }).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Real‑time stream novinek z kolekce `news`
+  Stream<List<News>> getNewsStream({int limit = 20}) {
+    return _firestore
+        .collection('news')
+        .orderBy('publishedAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return News(
+          id: doc.id,
+          title: (data['title'] ?? '').toString(),
+          content: (data['content'] ?? '').toString(),
+          imageUrl: (data['imageUrl'] ?? '').toString(),
+          source: (data['source'] ?? '').toString(),
+          url: (data['url'] ?? '').toString(),
+          publishedAt: (data['publishedAt'] is Timestamp)
+              ? (data['publishedAt'] as Timestamp).toDate()
+              : DateTime.tryParse((data['publishedAt'] ?? '').toString()),
+        );
+      }).toList();
+    });
+  }
+
+  /// Uložit / aktualizovat novinky do kolekce `news`.
+  /// Očekává se, že News.id je unikátní (např. hash URL nebo ID z API).
+  Future<void> saveNews(List<News> news) async {
+    if (news.isEmpty) return;
+    final batch = _firestore.batch();
+
+    for (final item in news) {
+      final docRef = _firestore.collection('news').doc(item.id);
+      batch.set(docRef, {
+        'title': item.title,
+        'content': item.content,
+        'imageUrl': item.imageUrl,
+        'source': item.source,
+        'url': item.url,
+        'publishedAt': item.publishedAt != null
+            ? Timestamp.fromDate(item.publishedAt!)
+            : FieldValue.serverTimestamp(),
+        'updated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
+  }
+
+  /// Načíst novinky z externího API a uložit je do Firestore.
+  /// Můžeš volat např. z AutoUpdateService nebo při startu aplikace.
+  Future<void> fetchAndSaveNewsFromApi() async {
+    try {
+      final latest = await _newsApiService.fetchLatestNews();
+      if (latest.isNotEmpty) {
+        await saveNews(latest);
+      }
+    } catch (e) {
+      // Ignorovat chybu, aplikace poběží dál pouze s existujícími daty
+    }
+  }
 
   // Načíst všechny ligy (bez Champions League a Europa League)
   Future<List<League>> getLeagues() async {
@@ -322,14 +418,9 @@ class FirestoreService {
         final matches = doc['matches'] as List;
         final allMatches = matches.map((match) => Match.fromMap(match)).toList();
         
-        // Filtrovat pouze povolené ligy a zápasy, které se skutečně hrají v tento den
+        // Filtrovat pouze zápasy, které se skutečně hrají v tento den
+        // (ligu už neomezujeme – ve Firestore můžeš mít, co chceš a vše se zobrazí)
         return allMatches.where((match) {
-          // Kontrola povolených lig
-          if (!_allowedLeagueIds.contains(match.leagueId)) {
-            return false;
-          }
-          
-          // Kontrola skutečného data zápasu - musí odpovídat požadovanému datu
           final matchDate = match.date;
           return matchDate.year == date.year &&
                  matchDate.month == date.month &&
@@ -1169,6 +1260,26 @@ class FirestoreService {
       rethrow;
     }
   }
+}
+
+class News {
+  final String id;
+  final String title;
+  final String content;
+  final String imageUrl;
+  final String source;
+  final String url;
+  final DateTime? publishedAt;
+
+  News({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.imageUrl,
+    required this.source,
+    required this.url,
+    this.publishedAt,
+  });
 }
 
 class League {

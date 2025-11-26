@@ -60,23 +60,29 @@ class AutoUpdateService {
 
   /// Provede aktualizaci všech lig
   Future<void> _performUpdate() async {
-    if (_leaguesToUpdate.isEmpty) {
-      return;
+    // 1) Aktualizovat ligová data (pokud jsou nakonfigurována)
+    if (_leaguesToUpdate.isNotEmpty) {
+      for (var entry in _leaguesToUpdate.entries) {
+        final leagueId = entry.key;
+        final config = entry.value;
+        
+        try {
+          await _firestoreService.updateLeagueData(
+            leagueId: leagueId,
+            apiLeagueId: config['apiLeagueId']!,
+            season: config['season']!,
+          );
+        } catch (e) {
+          // Chyba při aktualizaci ligy
+        }
+      }
     }
 
-    for (var entry in _leaguesToUpdate.entries) {
-      final leagueId = entry.key;
-      final config = entry.value;
-      
-      try {
-        await _firestoreService.updateLeagueData(
-          leagueId: leagueId,
-          apiLeagueId: config['apiLeagueId']!,
-          season: config['season']!,
-        );
-      } catch (e) {
-        // Chyba při aktualizaci ligy
-      }
+    // 2) Automaticky aktualizovat novinky z externího API
+    try {
+      await _firestoreService.fetchAndSaveNewsFromApi();
+    } catch (e) {
+      // Chyba při aktualizaci novinek – ignorovat
     }
   }
 

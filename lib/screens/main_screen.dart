@@ -34,7 +34,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   
   // Zápasy pro všechny dny v kalendáři (5 dní zpět, dnes, 5 dní dopředu)
   Map<String, List<Match>> _matchesByDate = {};
-  bool _isLoadingMatches = false;
+  bool _isLoadingMatches = true; // Začít s true, aby se zobrazil loading
+  bool _isLoadingMatchesInProgress = false; // Zabraňuje více současným voláním
   
   // Týmy pro zobrazení oblíbených
   List<Team> _allTeams = [];
@@ -134,27 +135,54 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _loadAllMatchesForCalendar() async {
-    setState(() => _isLoadingMatches = true);
+    // Zabraň více současným voláním
+    if (_isLoadingMatchesInProgress) {
+      return;
+    }
     
-    final now = DateTime.now();
-    final dates = List.generate(11, (index) => now.add(Duration(days: index - 5)));
+    setState(() {
+      _isLoadingMatches = true;
+      _isLoadingMatchesInProgress = true;
+    });
     
-    final Map<String, List<Match>> allMatchesMap = {};
-    final Set<int> processedMatchIds = {}; // Pro kontrolu duplicit
-    final apiService = ApiFootballService();
-    await apiService.initializeApiKey();
+    try {
+      final now = DateTime.now();
+      final dates = List.generate(11, (index) => now.add(Duration(days: index - 5)));
+      
+      final Map<String, List<Match>> allMatchesMap = {};
+      final Set<int> processedMatchIds = {}; // Pro kontrolu duplicit
+      final apiService = ApiFootballService();
+      await apiService.initializeApiKey();
     
-    for (var date in dates) {
-      try {
-        // Vždy načíst z API a uložit do Firestore (pro aktualizaci dat)
-        var allMatches = await apiService.getFixtures(date: date);
-        
-        // Filtrovat pouze povolené ligy (top 5 evropských lig)
-        var allowedMatches = allMatches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
-        
-        // Rozdělit zápasy podle jejich skutečného data pro ukládání do Firestore
-        final Map<String, List<Match>> matchesByActualDate = {};
-        for (var match in allowedMatches) {
+      for (var date in dates) {
+        try {
+          // 1) Načíst zápasy z API
+          var apiMatches = await apiService.getFixtures(date: date);
+          var allowedApiMatches = apiMatches
+              .where((match) => _allowedLeagueIds.contains(match.leagueId))
+              .toList();
+
+          // 2) Načíst zápasy z Firestore pro stejné datum
+          var firestoreMatches = await _firestoreService.getFixtures(date);
+
+          // 3) Sloučit API + Firestore (primárně podle ID, bez duplicit)
+          final Map<int, Match> combinedMap = {};
+          for (var match in firestoreMatches) {
+            combinedMap[match.id] = match;
+          }
+          for (var match in allowedApiMatches) {
+            combinedMap[match.id] = match;
+          }
+          final combinedMatches = combinedMap.values.toList();
+          
+          // Pokud nemáme žádné zápasy ani z API ani z Firestore, pokračovat na další datum
+          if (combinedMatches.isEmpty) {
+            continue;
+          }
+          
+          // Rozdělit zápasy podle jejich skutečného data pro ukládání do Firestore
+          final Map<String, List<Match>> matchesByActualDate = {};
+          for (var match in combinedMatches) {
           final matchDate = match.date;
           final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
           
@@ -164,67 +192,42 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           matchesByActualDate[matchDateKey]!.add(match);
         }
         
-        for (var entry in matchesByActualDate.entries) {
-          final matchDateKey = entry.key;
-          final matchesForDate = entry.value;
-          final parts = matchDateKey.split('-');
-          if (parts.length == 3) {
-            final matchDate = DateTime(
-              int.parse(parts[0]),
-              int.parse(parts[1]),
-              int.parse(parts[2]),
-            );
-            
-            if (matchesForDate.isNotEmpty) {
-              await _firestoreService.saveFixtures(date: matchDate, matches: matchesForDate);
-            }
-          }
-        }
-        
-        final today = DateTime.now();
-        for (var match in allowedMatches) {
-          if (processedMatchIds.contains(match.id)) continue;
-          
-          final matchDate = match.date;
-          
-          if (date.year == today.year && 
-              date.month == today.month && 
-              date.day == today.day) {
-            final yesterday = today.subtract(const Duration(days: 1));
-            if (matchDate.year == yesterday.year &&
-                matchDate.month == yesterday.month &&
-                matchDate.day == yesterday.day) {
-              continue;
+          // Uložit / aktualizovat zápasy ve Firestore podle skutečného data
+          for (var entry in matchesByActualDate.entries) {
+            final matchDateKey = entry.key;
+            final matchesForDate = entry.value;
+            final parts = matchDateKey.split('-');
+            if (parts.length == 3) {
+              final matchDate = DateTime(
+                int.parse(parts[0]),
+                int.parse(parts[1]),
+                int.parse(parts[2]),
+              );
+              
+              if (matchesForDate.isNotEmpty) {
+                await _firestoreService.saveFixtures(date: matchDate, matches: matchesForDate);
+              }
             }
           }
           
-          final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
-          
-          if (!allMatchesMap.containsKey(matchDateKey)) {
-            allMatchesMap[matchDateKey] = [];
-          }
-          allMatchesMap[matchDateKey]!.add(match);
-          processedMatchIds.add(match.id);
-          
-          if (match.isLive || match.isFinished) {
-            _loadMatchDetails(match.id);
-          }
-        }
-      } catch (e) {
-        try {
-          var matches = await _firestoreService.getFixtures(date);
-          
-          for (var match in matches) {
+          final today = DateTime.now();
+          for (var match in combinedMatches) {
             if (processedMatchIds.contains(match.id)) continue;
             
             final matchDate = match.date;
-            final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
             
-            if (matchDate.year != date.year ||
-                matchDate.month != date.month ||
-                matchDate.day != date.day) {
-              continue;
+            if (date.year == today.year && 
+                date.month == today.month && 
+                date.day == today.day) {
+              final yesterday = today.subtract(const Duration(days: 1));
+              if (matchDate.year == yesterday.year &&
+                  matchDate.month == yesterday.month &&
+                  matchDate.day == yesterday.day) {
+                continue;
+              }
             }
+            
+            final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
             
             if (!allMatchesMap.containsKey(matchDateKey)) {
               allMatchesMap[matchDateKey] = [];
@@ -236,11 +239,38 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               _loadMatchDetails(match.id);
             }
           }
-        } catch (e2) {
-          // Ignorovat chyby při načítání z Firestore
+        } catch (e) {
+          try {
+            // Pokud API selže, načti alespoň zápasy z Firestore
+            var matches = await _firestoreService.getFixtures(date);
+            
+            for (var match in matches) {
+              if (processedMatchIds.contains(match.id)) continue;
+              
+              final matchDate = match.date;
+              final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
+              
+              if (matchDate.year != date.year ||
+                  matchDate.month != date.month ||
+                  matchDate.day != date.day) {
+                continue;
+              }
+              
+              if (!allMatchesMap.containsKey(matchDateKey)) {
+                allMatchesMap[matchDateKey] = [];
+              }
+              allMatchesMap[matchDateKey]!.add(match);
+              processedMatchIds.add(match.id);
+              
+              if (match.isLive || match.isFinished) {
+                _loadMatchDetails(match.id);
+              }
+            }
+          } catch (e2) {
+            // Ignorovat chyby při načítání z Firestore
+          }
         }
       }
-    }
     
     
     final Map<String, List<Match>> cleanedMatchesMap = {};
@@ -282,10 +312,47 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       }
     }
     
-    setState(() {
-      _matchesByDate = cleanedMatchesMap;
-      _isLoadingMatches = false;
-    });
+      setState(() {
+        _matchesByDate = cleanedMatchesMap;
+        _isLoadingMatches = false;
+        _isLoadingMatchesInProgress = false;
+      });
+    } catch (e) {
+      // V případě chyby zkusit načíst z Firestore
+      try {
+        final now = DateTime.now();
+        final dates = List.generate(11, (index) => now.add(Duration(days: index - 5)));
+        final Map<String, List<Match>> allMatchesMap = {};
+        
+        for (var date in dates) {
+          try {
+            var matches = await _firestoreService.getFixtures(date);
+            for (var match in matches) {
+              final matchDate = match.date;
+              final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
+              
+              if (!allMatchesMap.containsKey(matchDateKey)) {
+                allMatchesMap[matchDateKey] = [];
+              }
+              allMatchesMap[matchDateKey]!.add(match);
+            }
+          } catch (e2) {
+            // Ignorovat chyby při načítání z Firestore
+          }
+        }
+        
+        setState(() {
+          _matchesByDate = allMatchesMap;
+          _isLoadingMatches = false;
+          _isLoadingMatchesInProgress = false;
+        });
+      } catch (e2) {
+        setState(() {
+          _isLoadingMatches = false;
+          _isLoadingMatchesInProgress = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadMatchDetails(int fixtureId) async {
@@ -296,6 +363,77 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       }
     } catch (e) {
       // Ignorovat chyby při načítání detailů
+    }
+  }
+
+  // Načíst zápasy pro konkrétní datum
+  Future<void> _loadMatchesForDate(DateTime date) async {
+    try {
+      // 1) Nejprve zkusit načíst zápasy z Firestore
+      var firestoreMatches = await _firestoreService.getFixtures(date);
+      final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+      if (firestoreMatches.isNotEmpty) {
+        final Map<String, List<Match>> updatedMatches = Map.from(_matchesByDate);
+        updatedMatches[dateKey] = firestoreMatches;
+
+        setState(() {
+          _matchesByDate = updatedMatches;
+        });
+        return;
+      }
+
+      // 2) Pokud ve Firestore nic není, zkusit načíst z API a uložit
+      final apiService = ApiFootballService();
+      await apiService.initializeApiKey();
+      
+      var allMatches = await apiService.getFixtures(date: date);
+      var allowedMatches = allMatches.where((match) => _allowedLeagueIds.contains(match.leagueId)).toList();
+      
+      // Uložit do Firestore
+      if (allowedMatches.isNotEmpty) {
+        await _firestoreService.saveFixtures(date: date, matches: allowedMatches);
+      }
+      
+      // Přidat do _matchesByDate
+      if (allowedMatches.isNotEmpty) {
+        final Map<String, List<Match>> updatedMatches = Map.from(_matchesByDate);
+        
+        for (var match in allowedMatches) {
+          final matchDate = match.date;
+          final matchDateKey = '${matchDate.year}-${matchDate.month.toString().padLeft(2, '0')}-${matchDate.day.toString().padLeft(2, '0')}';
+          
+          if (!updatedMatches.containsKey(matchDateKey)) {
+            updatedMatches[matchDateKey] = [];
+          }
+          
+          // Zkontrolovat, jestli už tam není
+          if (!updatedMatches[matchDateKey]!.any((m) => m.id == match.id)) {
+            updatedMatches[matchDateKey]!.add(match);
+          }
+        }
+        
+        setState(() {
+          _matchesByDate = updatedMatches;
+        });
+      }
+    } catch (e) {
+      // Pokud API selže, zkusit načíst z Firestore
+      try {
+        var matches = await _firestoreService.getFixtures(date);
+        if (matches.isNotEmpty) {
+          final matchDateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+          
+          final Map<String, List<Match>> updatedMatches = Map.from(_matchesByDate);
+          updatedMatches[matchDateKey] = matches;
+          
+          setState(() {
+            _matchesByDate = updatedMatches;
+          });
+        }
+      } catch (e2) {
+        // Ignorovat chyby
+      }
     }
   }
 
@@ -359,7 +497,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _checkAuthStatus();
-    _loadAllMatchesForCalendar();
+    // Nevolat _loadAllMatchesForCalendar() znovu, už se volá v initState
   }
 
   void _centerCalendarOnToday() {
@@ -882,6 +1020,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       child: GestureDetector(
                         onTap: () {
                           setState(() => _selectedDate = date);
+                          // Pokud nejsou zápasy pro vybrané datum, zkusit je načíst
+                          final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                          if (!_matchesByDate.containsKey(dateKey) || _matchesByDate[dateKey]!.isEmpty) {
+                            _loadMatchesForDate(date);
+                          }
                         },
                         child: Container(
                           width: 50,
@@ -956,15 +1099,137 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   // Novinky (úplně napravo)
   Widget _buildNewsScreen() {
-    return Center(
-      child: Text(
-        'Již brzy',
-        style: const TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey,
-        ),
-      ),
+    return StreamBuilder<List<News>>(
+      stream: _firestoreService.getNewsStream(limit: 30),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                  SizedBox(height: 12),
+                  Text(
+                    'Nepodařilo se načíst novinky.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final news = snapshot.data ?? [];
+
+        if (news.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.article_outlined, size: 48, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text(
+                    'Žádné novinky nejsou k dispozici.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: news.length,
+          itemBuilder: (context, index) {
+            final item = news[index];
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (item.imageUrl.isNotEmpty)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: Image.network(
+                            item.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[200],
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.image_not_supported_outlined,
+                                  color: Colors.grey,
+                                  size: 32,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    if (item.imageUrl.isNotEmpty) const SizedBox(height: 8),
+                    Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (item.publishedAt != null)
+                      Text(
+                        '${item.publishedAt!.day}.${item.publishedAt!.month}.${item.publishedAt!.year} '
+                        '${item.publishedAt!.hour.toString().padLeft(2, '0')}:${item.publishedAt!.minute.toString().padLeft(2, '0')}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    if (item.source.isNotEmpty)
+                      Text(
+                        item.source,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    if (item.content.isNotEmpty)
+                      Text(
+                        item.content,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -999,37 +1264,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       );
     }
 
-    // Seznam všech dat, která se mají zobrazit (aby se předešlo duplicitám)
-    final Set<String> datesToShow = {};
-    final List<MapEntry<DateTime, bool>> dateEntries = []; // DateTime a bool (zda je vybraný den)
-    
-    final selectedDay = _selectedDate.day;
-    final currentYear = _selectedDate.year;
-    final currentMonth = _selectedDate.month;
-    final additionalDays = [23, 24, 25, 26];
-    
-    // Pokud je vybraný den jeden z 23., 24., 25., 26., zobrazit zápasy pro všechny tyto dny
-    if (additionalDays.contains(selectedDay)) {
-      for (int day in additionalDays) {
-        try {
-          final date = DateTime(currentYear, currentMonth, day);
-          final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-          if (!datesToShow.contains(dateKey)) {
-            datesToShow.add(dateKey);
-            dateEntries.add(MapEntry(date, day == selectedDay)); // Označit vybraný den
-          }
-        } catch (e) {
-          // Ignorovat neplatná data (např. 31. únor)
-        }
-      }
-    } else {
-      // Jinak zobrazit pouze zápasy pro vybraný den
-      final dateKey = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
-      if (!datesToShow.contains(dateKey)) {
-        datesToShow.add(dateKey);
-        dateEntries.add(MapEntry(_selectedDate, true)); // Vybraný den
-      }
-    }
+    // Vždy zobrazit pouze zápasy pro aktuálně vybraný den
+    final List<MapEntry<DateTime, bool>> dateEntries = [
+      MapEntry(_selectedDate, true), // Vybraný den
+    ];
     
     // Seřadit data chronologicky
     dateEntries.sort((a, b) => a.key.compareTo(b.key));
@@ -1044,13 +1282,19 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       final allMatches = _matchesByDate[dateKey] ?? [];
       
-      // Filtrovat zápasy podle jejich skutečného data - zobrazit pouze zápasy, které se hrají v tento den
-      final matches = allMatches.where((match) {
+      // Primárně zkusit filtrovat zápasy přesné na daný den
+      var matches = allMatches.where((match) {
         final matchDate = match.date;
         return matchDate.year == date.year &&
                matchDate.month == date.month &&
                matchDate.day == date.day;
       }).toList();
+
+      // Pokud by kvůli časovému posunu / formátu zůstalo prázdné,
+      // ale pro tento klíč nějaké zápasy máme, zobraz je všechny.
+      if (matches.isEmpty && allMatches.isNotEmpty) {
+        matches = allMatches;
+      }
       
       if (matches.isNotEmpty) {
         hasAnyMatches = true;
