@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
+import '../services/api_football_service.dart';
 
 class TeamDetailScreen extends StatefulWidget {
   final Team team;
@@ -15,9 +16,11 @@ class TeamDetailScreen extends StatefulWidget {
 
 class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
+  final ApiFootballService _apiFootballService = ApiFootballService();
   List<Player> _players = [];
   Map<int, Map<String, dynamic>> _playerProfiles = {};
   bool _isLoadingPlayers = false;
+  String? _errorMessage;
   late TabController _tabController;
 
   @override
@@ -34,7 +37,10 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
   }
 
   Future<void> _loadPlayers() async {
-    setState(() => _isLoadingPlayers = true);
+    setState(() {
+      _isLoadingPlayers = true;
+      _errorMessage = null;
+    });
     
     try {
       // Nejdříve zkusit načíst z Firestore
@@ -44,21 +50,41 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
       );
 
       // Pokud nejsou v Firestore a tým má API ID, načíst z API
-      if (players.isEmpty && widget.team.apiTeamId > 0) {
-        try {
-          await _firestoreService.fetchAndSavePlayers(
-            teamId: widget.team.id,
-            apiTeamId: widget.team.apiTeamId,
-            season: widget.team.season,
-          );
-          
-          // Znovu načíst z Firestore
-          players = await _firestoreService.getPlayers(
-            teamId: widget.team.id,
-            season: widget.team.season,
-          );
-        } catch (e) {
-          // Chyba při načítání z API - pokračovat s prázdným seznamem
+      if (players.isEmpty) {
+        if (widget.team.apiTeamId > 0) {
+          try {
+            // Inicializovat API klíč
+            await _apiFootballService.initializeApiKey();
+            
+            // Načíst a uložit hráče z API
+            await _firestoreService.fetchAndSavePlayers(
+              teamId: widget.team.id,
+              apiTeamId: widget.team.apiTeamId,
+              season: widget.team.season,
+            );
+            
+            // Znovu načíst z Firestore po uložení
+            players = await _firestoreService.getPlayers(
+              teamId: widget.team.id,
+              season: widget.team.season,
+            );
+            
+            if (players.isEmpty) {
+              setState(() {
+                _errorMessage = 'Nepodařilo se načíst hráče z API. Zkuste to později.';
+              });
+            }
+          } catch (e) {
+            // Chyba při načítání z API
+            setState(() {
+              _errorMessage = 'Chyba při načítání hráčů: ${e.toString()}';
+            });
+          }
+        } else {
+          // Tým nemá API ID
+          setState(() {
+            _errorMessage = 'Tento tým nemá nastavené API ID. Hráči nemohou být načteni.';
+          });
         }
       }
       
@@ -78,6 +104,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
       setState(() {
         _isLoadingPlayers = false;
         _players = [];
+        _errorMessage = 'Neočekávaná chyba: ${e.toString()}';
       });
     }
   }
@@ -373,20 +400,54 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
   Widget _buildPlayersTab() {
     if (_isLoadingPlayers) {
       return const Center(
-        child: CircularProgressIndicator(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Načítám hráče...',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
       );
     }
 
     if (_players.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text(
-            'Žádní hráči nejsou k dispozici',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 16,
-            ),
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.people_outline,
+                size: 64,
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage ?? 'Žádní hráči nejsou k dispozici',
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (widget.team.apiTeamId > 0 && _errorMessage != null) ...[
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _loadPlayers,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Zkusit znovu'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3E5F44),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       );

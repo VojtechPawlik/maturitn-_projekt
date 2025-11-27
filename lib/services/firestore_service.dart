@@ -808,65 +808,194 @@ class FirestoreService {
     }
   }
 
-  // Zajistit, že všechny týmy mají apiTeamId
-  Future<void> _ensureAllTeamsHaveApiId() async {
+  // Zajistit, že všechny týmy mají apiTeamId (veřejná metoda pro použití z UI)
+  Future<void> ensureAllTeamsHaveApiId() async {
+    try {
+      await _ensureAllTeamsHaveApiId();
+    } catch (e) {
+      rethrow; // Znovu vyhodit chybu, aby se zobrazila uživateli
+    }
+  }
+
+  // Pomocná metoda: extrahovat API ID z loga URL a uložit do Firestore (bez API volání)
+  Future<int> updateApiTeamIdFromLogoUrls() async {
     try {
       final teams = await getTeams();
-      final leagues = [
-        {'id': 39, 'name': 'Premier League'},
-        {'id': 140, 'name': 'La Liga'},
-        {'id': 135, 'name': 'Serie A'},
-        {'id': 78, 'name': 'Bundesliga'},
-        {'id': 61, 'name': 'Ligue 1'},
-      ];
+      int updatedCount = 0;
       
-      final currentSeason = 2023;
-      final teamsWithoutApiId = teams.where((team) => team.apiTeamId == 0).toList();
-      
-      if (teamsWithoutApiId.isEmpty) {
-        return; // Všechny týmy už mají apiTeamId
+      for (var team in teams) {
+        if (team.apiTeamId > 0) continue; // Už má apiTeamId
+        
+        if (team.logoUrl.isNotEmpty) {
+          final logoMatch = RegExp(r'/teams/(\d+)\.png').firstMatch(team.logoUrl);
+          if (logoMatch != null) {
+            final apiId = int.tryParse(logoMatch.group(1)!);
+            if (apiId != null && apiId > 0) {
+              await _firestore.collection('teams').doc(team.id).update({
+                'apiTeamId': apiId,
+              });
+              updatedCount++;
+            }
+          }
+        }
       }
       
-      // Pro každou ligu načíst týmy z API a doplnit chybějící apiTeamId
-      for (var league in leagues) {
-        try {
-          final apiTeams = await _apiFootballService.getTeamsFromLeague(
-            leagueId: league['id'] as int,
-            season: currentSeason,
-          );
+      return updatedCount;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Zajistit, že všechny týmy mají apiTeamId
+  Future<void> _ensureAllTeamsHaveApiId() async {
+    // Inicializovat API klíč
+    await _apiFootballService.initializeApiKey();
+    
+    final teams = await getTeams();
+    
+    if (teams.isEmpty) {
+      throw Exception('V Firestore nejsou žádné týmy. Nejdříve načtěte tabulky lig.');
+    }
+    
+    // Mapování lig - ID ligy v Firestore -> API ID ligy
+    final leagueMap = [
+      {'firestoreId': 'premier_league', 'apiId': 39, 'name': 'Premier League'},
+      {'firestoreId': 'la_liga', 'apiId': 140, 'name': 'La Liga'},
+      {'firestoreId': 'serie_a', 'apiId': 135, 'name': 'Serie A'},
+      {'firestoreId': 'bundesliga', 'apiId': 78, 'name': 'Bundesliga'},
+      {'firestoreId': 'ligue_1', 'apiId': 61, 'name': 'Ligue 1'},
+    ];
+    
+    final currentSeason = 2023;
+    final teamsWithoutApiId = teams.where((team) => team.apiTeamId == 0).toList();
+    
+    if (teamsWithoutApiId.isEmpty) {
+      return; // Všechny týmy už mají apiTeamId
+    }
+    
+    int updatedCount = 0;
+    List<String> errors = [];
+    List<String> debugInfo = [];
+    
+    // Debug: zobrazit názvy lig týmů bez API ID
+    final uniqueLeagues = teamsWithoutApiId.map((t) => t.league).toSet().toList();
+    debugInfo.add('Týmy bez API ID: ${teamsWithoutApiId.length}');
+    debugInfo.add('Ligy: ${uniqueLeagues.join(", ")}');
+    
+    // Pro každou ligu načíst týmy z API a doplnit chybějící apiTeamId
+    for (var league in leagueMap) {
+      try {
+        final apiTeams = await _apiFootballService.getTeamsFromLeague(
+          leagueId: league['apiId'] as int,
+          season: currentSeason,
+        );
+        
+        if (apiTeams.isEmpty) {
+          errors.add('Žádné týmy z API pro ligu ${league['name']}');
+          continue;
+        }
+        
+        debugInfo.add('Liga ${league['name']}: načteno ${apiTeams.length} týmů z API');
+        
+        int leagueUpdatedCount = 0;
+        
+        // Pro každý tým z Firestore najít odpovídající tým z API
+        for (var firestoreTeam in teamsWithoutApiId) {
+          final teamLeague = firestoreTeam.league.toLowerCase().trim();
+          final leagueFirestoreId = league['firestoreId'] as String;
+          final leagueName = league['name'] as String;
           
-          // Pro každý tým z Firestore najít odpovídající tým z API
-          for (var firestoreTeam in teamsWithoutApiId) {
-            if (firestoreTeam.league.toLowerCase().contains(league['name']!.toString().toLowerCase())) {
-              // Najít tým v API podle názvu
-              final matchingApiTeam = apiTeams.firstWhere(
-                (apiTeam) {
-                  final apiName = (apiTeam['name'] ?? '').toString().toLowerCase();
-                  final firestoreName = firestoreTeam.name.toLowerCase();
-                  return apiName == firestoreName || 
-                         apiName.contains(firestoreName) || 
-                         firestoreName.contains(apiName);
-                },
+          // Zkontrolovat, jestli tým patří do této ligy
+          bool belongsToLeague = teamLeague.contains(leagueFirestoreId) || 
+                                 teamLeague.contains(leagueName.toLowerCase()) ||
+                                 teamLeague == leagueFirestoreId ||
+                                 teamLeague == leagueName.toLowerCase();
+          
+            if (belongsToLeague) {
+            // Zkusit extrahovat API ID z loga URL (pokud existuje)
+            int? apiIdFromLogo;
+            if (firestoreTeam.logoUrl.isNotEmpty) {
+              final logoMatch = RegExp(r'/teams/(\d+)\.png').firstMatch(firestoreTeam.logoUrl);
+              if (logoMatch != null) {
+                apiIdFromLogo = int.tryParse(logoMatch.group(1)!);
+              }
+            }
+            
+            // Pokud máme API ID z loga, zkontrolovat, jestli existuje v API
+            if (apiIdFromLogo != null) {
+              final teamFromLogo = apiTeams.firstWhere(
+                (apiTeam) => (apiTeam['id'] ?? 0) == apiIdFromLogo,
                 orElse: () => <String, dynamic>{},
               );
               
-              if (matchingApiTeam.isNotEmpty && matchingApiTeam['id'] != null) {
+              if (teamFromLogo.isNotEmpty) {
                 // Aktualizovat apiTeamId v Firestore
                 await _firestore.collection('teams').doc(firestoreTeam.id).update({
-                  'apiTeamId': matchingApiTeam['id'],
+                  'apiTeamId': apiIdFromLogo,
                 });
+                updatedCount++;
+                leagueUpdatedCount++;
+                continue; // Přeskočit hledání podle názvu
+              }
+            }
+            
+            // Najít tým v API podle názvu
+            final matchingApiTeam = apiTeams.firstWhere(
+              (apiTeam) {
+                final apiName = (apiTeam['name'] ?? '').toString().toLowerCase().trim();
+                final firestoreName = firestoreTeam.name.toLowerCase().trim();
+                // Přesná shoda nebo obsahuje
+                return apiName == firestoreName || 
+                       apiName.contains(firestoreName) || 
+                       firestoreName.contains(apiName);
+              },
+              orElse: () => <String, dynamic>{},
+            );
+            
+            if (matchingApiTeam.isNotEmpty && matchingApiTeam['id'] != null) {
+              // Aktualizovat apiTeamId v Firestore
+              await _firestore.collection('teams').doc(firestoreTeam.id).update({
+                'apiTeamId': matchingApiTeam['id'],
+              });
+              updatedCount++;
+              leagueUpdatedCount++;
+            } else {
+              debugInfo.add('Tým "${firestoreTeam.name}" (liga: ${firestoreTeam.league}) nebyl nalezen v API pro ${league['name']}');
+              if (apiIdFromLogo != null) {
+                debugInfo.add('  (API ID z loga: $apiIdFromLogo, ale tým nebyl nalezen v seznamu z API)');
               }
             }
           }
-          
-          // Počkat mezi ligami
-          await Future.delayed(const Duration(seconds: 1));
-        } catch (e) {
-          // Chyba při načítání týmů z API - pokračovat s další ligou
         }
+        
+        if (leagueUpdatedCount > 0) {
+          debugInfo.add('Liga ${league['name']}: aktualizováno $leagueUpdatedCount týmů');
+        }
+        
+        // Počkat mezi ligami
+        await Future.delayed(const Duration(seconds: 1));
+      } catch (e) {
+        errors.add('Chyba při načítání ligy ${league['name']}: ${e.toString()}');
+        // Pokračovat s další ligou
       }
-    } catch (e) {
-      // Chyba při zajišťování apiTeamId - pokračovat s načítáním hráčů
+    }
+    
+    // Pokud se nepodařilo aktualizovat žádný tým, vyhodit chybu s detaily
+    if (updatedCount == 0 && teamsWithoutApiId.isNotEmpty) {
+      final errorMessage = StringBuffer();
+      errorMessage.writeln('Nepodařilo se doplnit API ID pro žádný tým.\n');
+      errorMessage.writeln('Debug informace:');
+      errorMessage.writeln(debugInfo.join('\n'));
+      if (errors.isNotEmpty) {
+        errorMessage.writeln('\nChyby:');
+        errorMessage.writeln(errors.join('\n'));
+      }
+      errorMessage.writeln('\n\nMožné příčiny:');
+      errorMessage.writeln('1. Názvy týmů v Firestore se neshodují s názvy v API');
+      errorMessage.writeln('2. Názvy lig v Firestore se neshodují (očekáváno: premier_league, la_liga, atd.)');
+      errorMessage.writeln('3. Týmy nejsou z podporovaných lig');
+      
+      throw Exception(errorMessage.toString());
     }
   }
 

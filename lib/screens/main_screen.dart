@@ -21,7 +21,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
-  int _currentIndex = 2; // Hlavní stránka je uprostřed (index 2)
+  int _currentIndex = 0; // Hlavní stránka je první (index 0)
   DateTime _selectedDate = DateTime.now();
   final ScrollController _calendarController = ScrollController();
   Set<String> _favoriteTeams = {};
@@ -659,10 +659,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          _buildFavoriteTeamsScreen(),
-          _buildCompetitionsScreen(),
-          _buildMainScreen(),
-          TeamsScreen(
+          _buildMainScreen(), // index 0: Home
+          _buildCompetitionsScreen(), // index 1: Soutěže
+          TeamsScreen( // index 2: Týmy
             favoriteTeams: _favoriteTeams,
             onFavoritesChanged: (newFavorites) {
               setState(() {
@@ -671,7 +670,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               _saveFavoriteTeams();
             },
           ),
-          _buildNewsScreen(),
+          _buildFavoriteTeamsScreen(), // index 3: Oblíbené
         ],
       ),
       bottomNavigationBar: Container(
@@ -699,11 +698,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(Icons.favorite, 0),
-              _buildNavItem(Icons.emoji_events, 1),
-              _buildNavItem(Icons.home, 2),
-              _buildNavItem(Icons.groups, 3),
-              _buildNavItem(Icons.article, 4),
+              _buildNavItem(Icons.home, 0), // Home
+              _buildNavItem(Icons.emoji_events, 1), // Soutěže
+              _buildNavItem(Icons.groups, 2), // Týmy
+              _buildNavItem(Icons.favorite, 3), // Oblíbené
             ],
           ),
         ),
@@ -1094,142 +1092,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           ),
         ),
       ],
-    );
-  }
-
-  // Novinky (úplně napravo)
-  Widget _buildNewsScreen() {
-    return StreamBuilder<List<News>>(
-      stream: _firestoreService.getNewsStream(limit: 30),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-                  SizedBox(height: 12),
-                  Text(
-                    'Nepodařilo se načíst novinky.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        final news = snapshot.data ?? [];
-
-        if (news.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.article_outlined, size: 48, color: Colors.grey),
-                  SizedBox(height: 12),
-                  Text(
-                    'Žádné novinky nejsou k dispozici.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: news.length,
-          itemBuilder: (context, index) {
-            final item = news[index];
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (item.imageUrl.isNotEmpty)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: AspectRatio(
-                          aspectRatio: 16 / 9,
-                          child: Image.network(
-                            item.imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.grey[200],
-                                alignment: Alignment.center,
-                                child: const Icon(
-                                  Icons.image_not_supported_outlined,
-                                  color: Colors.grey,
-                                  size: 32,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    if (item.imageUrl.isNotEmpty) const SizedBox(height: 8),
-                    Text(
-                      item.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    if (item.publishedAt != null)
-                      Text(
-                        '${item.publishedAt!.day}.${item.publishedAt!.month}.${item.publishedAt!.year} '
-                        '${item.publishedAt!.hour.toString().padLeft(2, '0')}:${item.publishedAt!.minute.toString().padLeft(2, '0')}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    if (item.source.isNotEmpty)
-                      Text(
-                        item.source,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    if (item.content.isNotEmpty)
-                      Text(
-                        item.content,
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 
