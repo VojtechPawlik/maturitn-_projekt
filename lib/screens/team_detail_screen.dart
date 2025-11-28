@@ -654,10 +654,57 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
                 ],
               ),
             ),
-            // Statistiky
+            // Číslo dresu a statistiky
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Číslo dresu v ikoně dresu
+                if (player.number > 0)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    width: 60,
+                    height: 60,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Obrázek dresu jako pozadí
+                        Image.asset(
+                          'assets/images/jersey.png',
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback, pokud se obrázek nenačte
+                            return Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF3E5F44),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            );
+                          },
+                        ),
+                        // Číslo dresu uprostřed
+                        Text(
+                          '${player.number}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF3E5F44),
+                            shadows: [
+                              Shadow(
+                                offset: Offset(1, 1),
+                                blurRadius: 2,
+                                color: Colors.black26,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                // Statistiky
                 if (goals > 0)
                   _buildStatChip('⚽', goals.toString()),
                 if (assists > 0)
