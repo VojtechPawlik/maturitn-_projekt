@@ -347,18 +347,11 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
     required String label,
     required String value,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF3E5F44).withOpacity(0.3),
-          width: 2,
-        ),
-      ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             Icon(
@@ -627,28 +620,30 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (firstName.isNotEmpty)
+                  // Jméno a příjmení vedle sebe
+                  if (firstName.isNotEmpty || lastName.isNotEmpty)
                     Text(
-                      firstName,
+                      '$firstName $lastName'.trim(),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
-                    ),
-                  if (lastName.isNotEmpty)
-                    Text(
-                      lastName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  if (firstName.isEmpty && lastName.isEmpty)
+                    )
+                  else
                     Text(
                       player.name,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  // Věk hráče
+                  if (player.age > 0)
+                    Text(
+                      '${player.age} let',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
                       ),
                     ),
                 ],

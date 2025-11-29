@@ -331,6 +331,8 @@ class ApiFootballService {
             final detail = event['detail']?.toString() ?? '';
             final isOwnGoal = detail.contains('Own Goal');
             final isPenalty = detail.contains('Penalty');
+            final assist = event['assist'];
+            final assistPlayer = assist != null ? (assist['name'] ?? '') : '';
             
             goals.add(Goal(
               minute: minute,
@@ -338,6 +340,7 @@ class ApiFootballService {
               team: team,
               isOwnGoal: isOwnGoal,
               isPenalty: isPenalty,
+              assist: assistPlayer,
             ));
           }
         }
@@ -834,6 +837,7 @@ class Goal {
   final String team; // 'home' nebo 'away'
   final bool isOwnGoal;
   final bool isPenalty;
+  final String assist; // Jméno hráče, který asistoval
 
   Goal({
     required this.minute,
@@ -841,6 +845,7 @@ class Goal {
     required this.team,
     this.isOwnGoal = false,
     this.isPenalty = false,
+    this.assist = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -850,6 +855,7 @@ class Goal {
       'team': team,
       'isOwnGoal': isOwnGoal,
       'isPenalty': isPenalty,
+      'assist': assist,
     };
   }
 
@@ -860,6 +866,7 @@ class Goal {
       team: map['team'] ?? '',
       isOwnGoal: map['isOwnGoal'] ?? false,
       isPenalty: map['isPenalty'] ?? false,
+      assist: map['assist'] ?? '',
     );
   }
 }

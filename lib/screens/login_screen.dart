@@ -20,27 +20,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   
   bool _obscurePassword = true;
-  bool _rememberMe = false;
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRememberMePreference();
-  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadRememberMePreference() async {
-    final bool rememberMe = await _authService.shouldRememberUser();
-    setState(() {
-      _rememberMe = rememberMe;
-    });
   }
 
   Future<void> _signInWithEmail() async {
@@ -285,15 +271,10 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
 
-              // Zapamatovat si přihlášení a zapomenuté heslo
+              // Zapomenuté heslo
               Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Checkbox(
-                    value: _rememberMe,
-                    onChanged: (value) => setState(() => _rememberMe = value ?? false),
-                  ),
-                  const Text('Zůstat přihlášen'),
-                  const Spacer(),
                   TextButton(
                     onPressed: _resetPassword,
                     child: const Text('Zapomenuté heslo?'),

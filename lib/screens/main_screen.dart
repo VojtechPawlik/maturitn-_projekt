@@ -10,6 +10,7 @@ import 'teams_screen.dart';
 import 'settings_screen.dart';
 import 'standings_screen.dart';
 import 'team_detail_screen.dart';
+import 'match_detail_screen.dart';
 import '../services/localization_service.dart';
 
 
@@ -393,6 +394,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       // Uložit do Firestore
       if (allowedMatches.isNotEmpty) {
         await _firestoreService.saveFixtures(date: date, matches: allowedMatches);
+        
+        // Načíst a uložit detaily zápasů do Firestore (na pozadí, bez blokování UI)
+        for (var match in allowedMatches) {
+          // Načíst detaily pouze pro dokončené nebo živé zápasy
+          if (match.isFinished || match.isLive) {
+            _loadMatchDetails(match.id);
+          }
+        }
       }
       
       // Přidat do _matchesByDate
@@ -1427,7 +1436,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             ? const BorderSide(color: Colors.red, width: 2)
             : BorderSide.none,
       ),
-      child: Padding(
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MatchDetailScreen(match: match),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
@@ -1568,6 +1587,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             ],
           ],
         ),
+      ),
       ),
     );
   }

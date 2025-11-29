@@ -31,13 +31,13 @@ class SessionManager {
     _isLoggedIn = prefs.getBool('is_logged_in') ?? false;
     _userEmail = prefs.getString('user_email');
     
-    // Načíst přezdívku pro konkrétní email
+    // Načíst přezdívku a profilovou fotku pro konkrétní email
     if (_userEmail != null) {
       _userNickname = prefs.getString('nickname_$_userEmail');
+      _profileImageUrl = prefs.getString('profile_image_url_$_userEmail');
     }
     
     _profileImagePath = prefs.getString('profile_image_path');
-    _profileImageUrl = prefs.getString('profile_image_url');
   }
 
   // Přihlášení uživatele
@@ -50,6 +50,9 @@ class SessionManager {
     // Načíst uloženou přezdívku pro tento email
     final savedNickname = prefs.getString('nickname_$email');
     _userNickname = savedNickname ?? nickname ?? email.split('@')[0];
+    
+    // Načíst uloženou profilovou fotku pro tento email
+    _profileImageUrl = prefs.getString('profile_image_url_$email');
     
     // Uložit session
     await prefs.setString('user_email', email);
@@ -69,6 +72,7 @@ class SessionManager {
     _profileImagePath = null;
     _profileImageUrl = null;
     
+    // Vymazat pouze session data, ale zachovat profilovou fotku a přezdívku vázané na email
     await _clearPreferences();
   }
 
@@ -95,11 +99,16 @@ class SessionManager {
     
     if (profileImageUrl != null) {
       _profileImageUrl = profileImageUrl;
-      await prefs.setString('profile_image_url', profileImageUrl);
+      // Uložit profilovou fotku vázanou na email
+      if (_userEmail != null) {
+        await prefs.setString('profile_image_url_$_userEmail', profileImageUrl);
+      }
     } else if (profileImageUrl == null && _profileImageUrl != null) {
       // Odstranit profilový obrázek
       _profileImageUrl = null;
-      await prefs.remove('profile_image_url');
+      if (_userEmail != null) {
+        await prefs.remove('profile_image_url_$_userEmail');
+      }
     }
   }
 
