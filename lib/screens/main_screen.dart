@@ -4,6 +4,7 @@ import '../services/session_manager.dart';
 import '../services/firestore_service.dart';
 import '../services/api_football_service.dart';
 import '../services/auto_update_service.dart';
+import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'teams_screen.dart';
@@ -499,6 +500,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   Future<void> _initializeApp() async {
     await SessionManager().loadSavedSession();
+    
+    // Zkontrolovat, jestli má uživatel zaškrtnuté "Zůstat přihlášen"
+    final authService = AuthService();
+    final shouldRemember = await authService.shouldRememberUser();
+    
+    // Pokud je uživatel přihlášen, ale nemá zaškrtnuté "Zůstat přihlášen", odhlásit ho
+    if (SessionManager().isLoggedIn && !shouldRemember) {
+      await SessionManager().logoutUser();
+      await authService.signOut();
+    }
+    
     _checkAuthStatus();
   }
 
@@ -532,9 +544,29 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   void _checkAuthStatus() {
+    final wasLoggedIn = _isLoggedIn;
+    final previousEmail = SessionManager().userEmail;
+    
     setState(() {
       _isLoggedIn = SessionManager().isLoggedIn;
     });
+    
+    final currentEmail = SessionManager().userEmail;
+    
+    // Pokud se uživatel odhlásil, vymazat oblíbené týmy
+    if (wasLoggedIn && !_isLoggedIn) {
+      setState(() {
+        _favoriteTeams = {};
+      });
+    }
+    // Pokud se uživatel přihlásil nebo změnil účet, načíst jeho oblíbené týmy
+    else if (_isLoggedIn && (!wasLoggedIn || previousEmail != currentEmail)) {
+      _loadFavoriteTeams();
+    }
+    // Pokud je uživatel přihlášený, načíst oblíbené týmy i při inicializaci
+    else if (_isLoggedIn) {
+      _loadFavoriteTeams();
+    }
   }
 
   void _navigateToLogin() {
@@ -557,10 +589,20 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Future<void> _loadFavoriteTeams() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final favoriteTeamsList = prefs.getStringList('favorite_teams') ?? [];
-      setState(() {
-        _favoriteTeams = favoriteTeamsList.toSet();
-      });
+      final userEmail = SessionManager().userEmail;
+      
+      // Načíst oblíbené týmy pouze pokud je uživatel přihlášený
+      if (userEmail != null && _isLoggedIn) {
+        final favoriteTeamsList = prefs.getStringList('favorite_teams_$userEmail') ?? [];
+        setState(() {
+          _favoriteTeams = favoriteTeamsList.toSet();
+        });
+      } else {
+        // Pokud není přihlášený, vymazat oblíbené týmy
+        setState(() {
+          _favoriteTeams = {};
+        });
+      }
     } catch (e) {
       // Chyba při načítání - ignorovat
     }
@@ -570,13 +612,30 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Future<void> _saveFavoriteTeams() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('favorite_teams', _favoriteTeams.toList());
+      final userEmail = SessionManager().userEmail;
+      
+      // Uložit oblíbené týmy pouze pokud je uživatel přihlášený
+      if (userEmail != null && _isLoggedIn) {
+        await prefs.setStringList('favorite_teams_$userEmail', _favoriteTeams.toList());
+      }
     } catch (e) {
       // Chyba při ukládání - ignorovat
     }
   }
 
   void _toggleFavoriteTeam(String teamName) {
+    // Pokud není uživatel přihlášený, nelze přidat do oblíbených
+    if (!_isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pro přidání týmu do oblíbených se musíte přihlásit'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    
     setState(() {
       if (_favoriteTeams.contains(teamName)) {
         _favoriteTeams.remove(teamName);
@@ -672,6 +731,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           _buildCompetitionsScreen(), // index 1: Soutěže
           TeamsScreen( // index 2: Týmy
             favoriteTeams: _favoriteTeams,
+            isLoggedIn: _isLoggedIn,
             onFavoritesChanged: (newFavorites) {
               setState(() {
                 _favoriteTeams = newFavorites;
@@ -924,12 +984,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     bottom: 0,
                     child: Center(
                       child: GestureDetector(
-                        onTap: () {
-                          _toggleFavoriteTeam(team.name);
-                        },
-                        child: const Icon(
+                        onTap: _isLoggedIn
+                            ? () {
+                                _toggleFavoriteTeam(team.name);
+                              }
+                            : null, // Zakázat kliknutí, pokud není přihlášený
+                        child: Icon(
                           Icons.favorite,
-                          color: Colors.red,
+                          color: _isLoggedIn ? Colors.red : Colors.grey[300],
                           size: 28,
                         ),
                       ),

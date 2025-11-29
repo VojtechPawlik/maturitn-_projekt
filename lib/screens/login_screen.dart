@@ -21,6 +21,31 @@ class _LoginScreenState extends State<LoginScreen> {
   
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String? _passwordError;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberMePreference();
+    _passwordController.addListener(() {
+      // Vymazat chybu při změně hesla
+      if (_passwordError != null) {
+        setState(() {
+          _passwordError = null;
+        });
+        // Znovu validovat, aby se chyba odstranila
+        _formKey.currentState?.validate();
+      }
+    });
+  }
+
+  Future<void> _loadRememberMePreference() async {
+    final bool rememberMe = await _authService.shouldRememberUser();
+    setState(() {
+      _rememberMe = rememberMe;
+    });
+  }
 
   @override
   void dispose() {
@@ -38,12 +63,14 @@ class _LoginScreenState extends State<LoginScreen> {
       await _authService.signInWithEmailPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        rememberMe: _rememberMe,
       );
       
       // Nastavit session po úspěšném přihlášení
       await SessionManager().loginUser(
         email: _emailController.text.trim(),
         nickname: 'Uživatel', // Default nickname
+        rememberMe: _rememberMe,
       );
       
       if (mounted) {
@@ -57,7 +84,12 @@ class _LoginScreenState extends State<LoginScreen> {
         if (errorMessage.contains('není ověřen')) {
           _showEmailVerificationDialog();
         } else {
-          _showErrorMessage(errorMessage);
+          // Zobrazit chybu pod polem pro heslo
+          setState(() {
+            _passwordError = 'Zadané špatné heslo';
+          });
+          // Znovu validovat formulář, aby se zobrazila chyba
+          _formKey.currentState?.validate();
         }
       }
     } finally {
@@ -71,13 +103,14 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _authService.signInWithGoogle();
+      final result = await _authService.signInWithGoogle(rememberMe: _rememberMe);
       
       if (result != null && mounted) {
         // Nastavit session po úspěšném přihlášení
         await SessionManager().loginUser(
           email: result.user?.email ?? 'google.user@gmail.com',
           nickname: result.user?.displayName ?? 'Google uživatel',
+          rememberMe: _rememberMe,
         );
         
         Navigator.of(context).pop(true);
@@ -98,13 +131,14 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _authService.signInWithApple();
+      final result = await _authService.signInWithApple(rememberMe: _rememberMe);
       
       if (result != null && mounted) {
         // Nastavit session po úspěšném přihlášení
         await SessionManager().loginUser(
           email: result.user?.email ?? 'apple.user@icloud.com',
           nickname: result.user?.displayName ?? 'Apple uživatel',
+          rememberMe: _rememberMe,
         );
         
         Navigator.of(context).pop(true);
@@ -266,15 +300,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (value.length < 6) {
                     return 'Heslo musí mít alespoň 6 znaků';
                   }
+                  // Pokud je nastavena chyba z API, zobrazit ji
+                  if (_passwordError != null) {
+                    return _passwordError;
+                  }
                   return null;
                 },
               ),
               const SizedBox(height: 8),
 
-              // Zapomenuté heslo
+              // Zapamatovat si přihlášení a zapomenuté heslo
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  Checkbox(
+                    value: _rememberMe,
+                    onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                  ),
+                  const Text('Zůstat přihlášen'),
+                  const Spacer(),
                   TextButton(
                     onPressed: _resetPassword,
                     child: const Text('Zapomenuté heslo?'),

@@ -5,11 +5,13 @@ import 'team_detail_screen.dart';
 class TeamsScreen extends StatefulWidget {
   final Set<String> favoriteTeams;
   final Function(Set<String>) onFavoritesChanged;
+  final bool isLoggedIn;
 
   const TeamsScreen({
     super.key,
     required this.favoriteTeams,
     required this.onFavoritesChanged,
+    required this.isLoggedIn,
   });
 
   @override
@@ -300,17 +302,24 @@ class _TeamsScreenState extends State<TeamsScreen> {
                             IconButton(
                               icon: Icon(
                                 isFavorite ? Icons.favorite : Icons.favorite_border,
-                                color: isFavorite ? Colors.red : Colors.grey,
+                                color: widget.isLoggedIn
+                                    ? (isFavorite ? Colors.red : Colors.grey)
+                                    : Colors.grey[300],
                               ),
-                              onPressed: () {
-                                final newFavorites = Set<String>.from(widget.favoriteTeams);
-                                if (isFavorite) {
-                                  newFavorites.remove(team.name);
-                                } else {
-                                  newFavorites.add(team.name);
-                                }
-                                widget.onFavoritesChanged(newFavorites);
-                              },
+                              onPressed: widget.isLoggedIn
+                                  ? () {
+                                      final newFavorites = Set<String>.from(widget.favoriteTeams);
+                                      if (isFavorite) {
+                                        newFavorites.remove(team.name);
+                                      } else {
+                                        newFavorites.add(team.name);
+                                      }
+                                      widget.onFavoritesChanged(newFavorites);
+                                    }
+                                  : null, // Zakázat kliknutí, pokud není přihlášený
+                              tooltip: widget.isLoggedIn
+                                  ? (isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených')
+                                  : 'Pro přidání do oblíbených se musíte přihlásit',
                             ),
                             const Icon(Icons.arrow_forward_ios, size: 16),
                           ],

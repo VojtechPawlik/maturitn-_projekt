@@ -33,13 +33,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _searchController.addListener(_filterTeams);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Načíst oblíbené týmy při každém zobrazení screenu (např. po návratu z jiného screenu)
+    _loadFavoriteTeams().then((_) {
+      if (mounted) {
+        _filterTeams(); // Aktualizovat seznam týmů s novými oblíbenými
+      }
+    });
+  }
+
   Future<void> _loadFavoriteTeams() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final favoriteTeamsList = prefs.getStringList('favorite_teams') ?? [];
-      setState(() {
-        _favoriteTeams = favoriteTeamsList.toSet();
-      });
+      final userEmail = SessionManager().userEmail;
+      
+      // Načíst oblíbené týmy vázané na email uživatele
+      if (userEmail != null) {
+        final favoriteTeamsList = prefs.getStringList('favorite_teams_$userEmail') ?? [];
+        setState(() {
+          _favoriteTeams = favoriteTeamsList.toSet();
+        });
+      } else {
+        setState(() {
+          _favoriteTeams = {};
+        });
+      }
     } catch (e) {
       // Chyba při načítání
     }

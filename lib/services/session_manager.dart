@@ -41,7 +41,7 @@ class SessionManager {
   }
 
   // Přihlášení uživatele
-  Future<void> loginUser({required String email, String? nickname}) async {
+  Future<void> loginUser({required String email, String? nickname, bool rememberMe = false}) async {
     final prefs = await SharedPreferences.getInstance();
     
     _userEmail = email;
@@ -54,9 +54,11 @@ class SessionManager {
     // Načíst uloženou profilovou fotku pro tento email
     _profileImageUrl = prefs.getString('profile_image_url_$email');
     
-    // Uložit session
-    await prefs.setString('user_email', email);
-    await prefs.setBool('is_logged_in', true);
+    // Uložit session pouze pokud má uživatel zaškrtnuté "Zůstat přihlášen"
+    if (rememberMe) {
+      await prefs.setString('user_email', email);
+      await prefs.setBool('is_logged_in', true);
+    }
     
     // Pokud není uložená přezdívka, ulož výchozí
     if (savedNickname == null && _userNickname != null) {
