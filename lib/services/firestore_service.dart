@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'api_football_service.dart';
 import 'news_api_service.dart';
+import '../models/betting_models.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -327,26 +328,30 @@ class FirestoreService {
     }
   }
 
-  // Uložit detailní informace o zápase
-  Future<void> saveMatchDetails(int fixtureId, MatchDetails details) async {
+
+  // ---------------------------
+  // SÁZENÍ (BETTING)
+  // ---------------------------
+
+  // Uložit kurzy k zápasu
+  Future<void> saveMatchOdds(int matchId, MatchOdds odds) async {
     try {
-      await _firestore.collection('match_details').doc('fixture_$fixtureId').set({
-        'fixtureId': fixtureId,
-        'updated': FieldValue.serverTimestamp(),
-        ...details.toMap(),
-      }, SetOptions(merge: true));
+      await _firestore.collection('match_odds').doc('match_$matchId').set(
+        odds.toMap(),
+        SetOptions(merge: true),
+      );
     } catch (e) {
-      // Chyba při ukládání detailů zápasu
+      // Chyba při ukládání kurzů
     }
   }
 
-  // Načíst detailní informace o zápase
-  Future<MatchDetails?> getMatchDetails(int fixtureId) async {
+  // Načíst kurzy k zápasu
+  Future<MatchOdds?> getMatchOdds(int matchId) async {
     try {
-      final doc = await _firestore.collection('match_details').doc('fixture_$fixtureId').get();
+      final doc = await _firestore.collection('match_odds').doc('match_$matchId').get();
       
       if (doc.exists && doc.data() != null) {
-        return MatchDetails.fromMap(doc.data()!);
+        return MatchOdds.fromMap(doc.data()!);
       }
       return null;
     } catch (e) {
@@ -354,20 +359,70 @@ class FirestoreService {
     }
   }
 
-  // Načíst a uložit detailní informace o zápase z API
-  Future<MatchDetails?> fetchAndSaveMatchDetails(int fixtureId) async {
+  // Uložit sázku
+  Future<void> saveBet(Bet bet) async {
     try {
-      // Načíst z API
-      final details = await _apiFootballService.getMatchDetails(fixtureId);
-      
-      if (details != null) {
-        // Uložit do Firestore
-        await saveMatchDetails(fixtureId, details);
-      }
-      
-      return details;
+      await _firestore.collection('bets').doc(bet.id).set(bet.toMap());
     } catch (e) {
-      return null;
+      // Chyba při ukládání sázky
+    }
+  }
+
+  // Načíst sázky uživatele
+  Future<List<Bet>> getUserBets(String userEmail) async {
+    try {
+      // Zkusit s orderBy, pokud selže, použít bez orderBy
+      try {
+        final snapshot = await _firestore
+            .collection('bets')
+            .where('userEmail', isEqualTo: userEmail)
+            .orderBy('placedAt', descending: true)
+            .get();
+
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          // Ujistit se, že máme všechna potřebná data
+          if (data['userEmail'] == userEmail) {
+            return Bet.fromMap(data);
+          }
+          return null;
+        }).whereType<Bet>().toList();
+      } catch (e) {
+        // Pokud selže orderBy (kvůli chybějícímu indexu), načíst bez orderBy a seřadit lokálně
+        final snapshot = await _firestore
+            .collection('bets')
+            .where('userEmail', isEqualTo: userEmail)
+            .get();
+
+        final bets = snapshot.docs.map((doc) {
+          final data = doc.data();
+          if (data['userEmail'] == userEmail) {
+            return Bet.fromMap(data);
+          }
+          return null;
+        }).whereType<Bet>().toList();
+        
+        // Seřadit lokálně podle data
+        bets.sort((a, b) => b.placedAt.compareTo(a.placedAt));
+        return bets;
+      }
+    } catch (e) {
+      // Chyba při načítání sázek
+      return [];
+    }
+  }
+
+  // Načíst sázky k zápasu
+  Future<List<Bet>> getMatchBets(int matchId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('bets')
+          .where('matchId', isEqualTo: matchId)
+          .get();
+
+      return snapshot.docs.map((doc) => Bet.fromMap(doc.data())).toList();
+    } catch (e) {
+      return [];
     }
   }
 

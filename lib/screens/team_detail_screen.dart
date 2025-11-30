@@ -52,29 +52,29 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
       // Pokud nejsou v Firestore a tým má API ID, načíst z API
       if (players.isEmpty) {
         if (widget.team.apiTeamId > 0) {
-          try {
+        try {
             // Inicializovat API klíč
             await _apiFootballService.initializeApiKey();
             
             // Načíst a uložit hráče z API
-            await _firestoreService.fetchAndSavePlayers(
-              teamId: widget.team.id,
-              apiTeamId: widget.team.apiTeamId,
-              season: widget.team.season,
-            );
-            
+          await _firestoreService.fetchAndSavePlayers(
+            teamId: widget.team.id,
+            apiTeamId: widget.team.apiTeamId,
+            season: widget.team.season,
+          );
+          
             // Znovu načíst z Firestore po uložení
-            players = await _firestoreService.getPlayers(
-              teamId: widget.team.id,
-              season: widget.team.season,
-            );
+          players = await _firestoreService.getPlayers(
+            teamId: widget.team.id,
+            season: widget.team.season,
+          );
             
             if (players.isEmpty) {
               setState(() {
                 _errorMessage = 'Nepodařilo se načíst hráče z API. Zkuste to později.';
               });
             }
-          } catch (e) {
+        } catch (e) {
             // Chyba při načítání z API
             setState(() {
               _errorMessage = 'Chyba při načítání hráčů: ${e.toString()}';
@@ -423,9 +423,9 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
               Text(
                 _errorMessage ?? 'Žádní hráči nejsou k dispozici',
                 style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 16,
-                ),
+              color: Colors.grey,
+              fontSize: 16,
+            ),
                 textAlign: TextAlign.center,
               ),
               if (widget.team.apiTeamId > 0 && _errorMessage != null) ...[

@@ -308,13 +308,13 @@ class _TeamsScreenState extends State<TeamsScreen> {
                               ),
                               onPressed: widget.isLoggedIn
                                   ? () {
-                                      final newFavorites = Set<String>.from(widget.favoriteTeams);
-                                      if (isFavorite) {
-                                        newFavorites.remove(team.name);
-                                      } else {
-                                        newFavorites.add(team.name);
-                                      }
-                                      widget.onFavoritesChanged(newFavorites);
+                                final newFavorites = Set<String>.from(widget.favoriteTeams);
+                                if (isFavorite) {
+                                  newFavorites.remove(team.name);
+                                } else {
+                                  newFavorites.add(team.name);
+                                }
+                                widget.onFavoritesChanged(newFavorites);
                                     }
                                   : null, // Zakázat kliknutí, pokud není přihlášený
                               tooltip: widget.isLoggedIn

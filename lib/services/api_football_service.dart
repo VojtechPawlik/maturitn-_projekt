@@ -287,14 +287,15 @@ class ApiFootballService {
     }
   }
 
-  // Načíst detailní informace o zápase
-  Future<MatchDetails?> getMatchDetails(int fixtureId) async {
+
+  // Načíst kurzy k zápasu
+  Future<Map<String, dynamic>?> getMatchOdds(int fixtureId) async {
     if (_apiKey == null) {
       await initializeApiKey();
     }
 
     try {
-      final url = '$_baseUrl/fixtures?id=$fixtureId';
+      final url = '$_baseUrl/odds?fixture=$fixtureId';
       
       final response = await http.get(
         Uri.parse(url),
@@ -315,157 +316,135 @@ class ApiFootballService {
           return null;
         }
 
-        final fixture = data['response'][0];
-        final fixtureData = fixture['fixture'];
-        final events = fixture['events'] as List? ?? [];
-        final statistics = fixture['statistics'] as List? ?? [];
-        final lineups = fixture['lineups'] as List? ?? [];
-
-        // Parsovat góly
-        final List<Goal> goals = [];
-        for (var event in events) {
-          if (event['type']['name'] == 'Goal') {
-            final team = event['team']['id'] == fixtureData['teams']['home']['id'] ? 'home' : 'away';
-            final player = event['player']['name'] ?? '';
-            final minute = event['time']['elapsed'] ?? 0;
-            final detail = event['detail']?.toString() ?? '';
-            final isOwnGoal = detail.contains('Own Goal');
-            final isPenalty = detail.contains('Penalty');
-            final assist = event['assist'];
-            final assistPlayer = assist != null ? (assist['name'] ?? '') : '';
-            
-            goals.add(Goal(
-              minute: minute,
-              player: player,
-              team: team,
-              isOwnGoal: isOwnGoal,
-              isPenalty: isPenalty,
-              assist: assistPlayer,
-            ));
-          }
-        }
-
-        // Parsovat karty
-        final List<MatchCard> cards = [];
-        for (var event in events) {
-          if (event['type']['name'] == 'Card') {
-            final team = event['team']['id'] == fixtureData['teams']['home']['id'] ? 'home' : 'away';
-            final player = event['player']['name'] ?? '';
-            final minute = event['time']['elapsed'] ?? 0;
-            final type = event['detail'] == 'Yellow Card' ? 'yellow' : 'red';
-            
-            cards.add(MatchCard(
-              minute: minute,
-              player: player,
-              team: team,
-              type: type,
-            ));
-          }
-        }
-
-        // Parsovat střídání
-        final List<Substitution> substitutions = [];
-        for (var event in events) {
-          if (event['type']['name'] == 'subst') {
-            final team = event['team']['id'] == fixtureData['teams']['home']['id'] ? 'home' : 'away';
-            // V API: player je hráč, který odchází, assist je hráč, který přichází
-            final playerOut = event['player']['name'] ?? '';
-            final assist = event['assist'];
-            final playerIn = assist != null ? (assist['name'] ?? '') : '';
-            final minute = event['time']['elapsed'] ?? 0;
-            
-            if (playerOut.isNotEmpty && playerIn.isNotEmpty) {
-              substitutions.add(Substitution(
-                minute: minute,
-                playerOut: playerOut,
-                playerIn: playerIn,
-                team: team,
-              ));
-            }
-          }
-        }
-
-        // Parsovat statistiky
-        final Map<String, int> homeStats = {};
-        final Map<String, int> awayStats = {};
+        // API vrací kurzy od různých bookmakerů
+        // Vezmeme první dostupný bookmaker (obvykle je to Bet365 nebo podobný)
+        final oddsData = data['response'][0];
+        final bookmaker = oddsData['bookmakers']?[0];
         
-        for (var stat in statistics) {
-          final teamId = stat['team']['id'];
-          final isHome = teamId == fixtureData['teams']['home']['id'];
-          
-          for (var statItem in stat['statistics'] ?? []) {
-            final statName = statItem['type'] ?? '';
-            final statValue = statItem['value'] is int 
-                ? statItem['value'] 
-                : (int.tryParse(statItem['value'].toString()) ?? 0);
-            
-            if (isHome) {
-              homeStats[statName] = statValue;
-            } else {
-              awayStats[statName] = statValue;
-            }
-          }
+        if (bookmaker == null || bookmaker['bets'] == null) {
+          return null;
         }
 
-        // Parsovat sestavy
-        Lineup homeLineup = Lineup(formation: '', startingXI: [], substitutes: []);
-        Lineup awayLineup = Lineup(formation: '', startingXI: [], substitutes: []);
-        
-        for (var lineup in lineups) {
-          final teamId = lineup['team']['id'];
-          final isHome = teamId == fixtureData['teams']['home']['id'];
-          
-          final formation = lineup['formation'] ?? '';
-          final startingXI = (lineup['startXI'] as List?)?.map((p) {
-            final player = p['player'];
-            return LineupPlayer(
-              id: player['id'] ?? 0,
-              name: player['name'] ?? '',
-              number: player['number'] ?? 0,
-              position: p['pos'] ?? '',
-              grid: p['grid'],
-            );
-          }).toList() ?? [];
-          
-          final substitutes = (lineup['substitutes'] as List?)?.map((p) {
-            final player = p['player'];
-            return LineupPlayer(
-              id: player['id'] ?? 0,
-              name: player['name'] ?? '',
-              number: player['number'] ?? 0,
-              position: p['pos'] ?? '',
-              grid: p['grid'],
-            );
-          }).toList() ?? [];
-          
-          final lineupObj = Lineup(
-            formation: formation,
-            startingXI: startingXI,
-            substitutes: substitutes,
-          );
-          
-          if (isHome) {
-            homeLineup = lineupObj;
-          } else {
-            awayLineup = lineupObj;
-          }
-        }
-
-        return MatchDetails(
-          fixtureId: fixtureId,
-          goals: goals,
-          cards: cards,
-          substitutions: substitutions,
-          statistics: MatchStatistics(
-            homeStats: homeStats,
-            awayStats: awayStats,
-          ),
-          homeLineup: homeLineup,
-          awayLineup: awayLineup,
+        // Najít kurzy na výsledek zápasu (1X2)
+        final bets = bookmaker['bets'] as List;
+        final matchResultBet = bets.firstWhere(
+          (bet) => bet['name'] == 'Match Winner' || bet['name'] == '1X2',
+          orElse: () => null,
         );
+
+        if (matchResultBet == null || matchResultBet['values'] == null) {
+          return null;
+        }
+
+        final values = matchResultBet['values'] as List;
+        double homeWin = 2.0;
+        double draw = 3.0;
+        double awayWin = 2.5;
+
+        for (var value in values) {
+          final option = value['value']?.toString().toLowerCase() ?? '';
+          final odd = double.tryParse(value['odd']?.toString() ?? '') ?? 1.0;
+          
+          if (option == 'home' || option == '1') {
+            homeWin = odd;
+          } else if (option == 'draw' || option == 'x') {
+            draw = odd;
+          } else if (option == 'away' || option == '2') {
+            awayWin = odd;
+          }
+        }
+
+        // Najít kurzy na počet gólů (Over/Under 2.5)
+        double? over25;
+        double? under25;
+        
+        final goalsBet = bets.firstWhere(
+          (bet) => bet['name']?.toString().toLowerCase().contains('goals') == true ||
+                   bet['name']?.toString().toLowerCase().contains('over') == true,
+          orElse: () => null,
+        );
+
+        if (goalsBet != null && goalsBet['values'] != null) {
+          final goalValues = goalsBet['values'] as List;
+          for (var value in goalValues) {
+            final option = value['value']?.toString().toLowerCase() ?? '';
+            final odd = double.tryParse(value['odd']?.toString() ?? '') ?? 1.0;
+            
+            if (option.contains('over') && option.contains('2.5')) {
+              over25 = odd;
+            } else if (option.contains('under') && option.contains('2.5')) {
+              under25 = odd;
+            }
+          }
+        }
+
+        // Najít kurzy na BTTS (Both Teams To Score)
+        double? bothTeamsScore;
+        double? bothTeamsNoScore;
+        
+        final bttsBet = bets.firstWhere(
+          (bet) => bet['name']?.toString().toLowerCase().contains('both teams') == true ||
+                   bet['name']?.toString().toLowerCase().contains('btts') == true,
+          orElse: () => null,
+        );
+
+        if (bttsBet != null && bttsBet['values'] != null) {
+          final bttsValues = bttsBet['values'] as List;
+          for (var value in bttsValues) {
+            final option = value['value']?.toString().toLowerCase() ?? '';
+            final odd = double.tryParse(value['odd']?.toString() ?? '') ?? 1.0;
+            
+            if (option == 'yes' || option.contains('yes')) {
+              bothTeamsScore = odd;
+            } else if (option == 'no' || option.contains('no')) {
+              bothTeamsNoScore = odd;
+            }
+          }
+        }
+
+        // Najít kurzy na dvojice (1X, X2, 12)
+        double? homeWinOrDraw;
+        double? awayWinOrDraw;
+        double? homeOrAway;
+        
+        final doubleChanceBet = bets.firstWhere(
+          (bet) => bet['name']?.toString().toLowerCase().contains('double chance') == true ||
+                   bet['name']?.toString().toLowerCase().contains('1x') == true,
+          orElse: () => null,
+        );
+
+        if (doubleChanceBet != null && doubleChanceBet['values'] != null) {
+          final doubleChanceValues = doubleChanceBet['values'] as List;
+          for (var value in doubleChanceValues) {
+            final option = value['value']?.toString().toUpperCase() ?? '';
+            final odd = double.tryParse(value['odd']?.toString() ?? '') ?? 1.0;
+            
+            if (option == '1X' || option.contains('1X')) {
+              homeWinOrDraw = odd;
+            } else if (option == 'X2' || option.contains('X2')) {
+              awayWinOrDraw = odd;
+            } else if (option == '12' || option == '1/2') {
+              homeOrAway = odd;
+            }
+          }
+        }
+
+        return {
+          'homeWin': homeWin,
+          'draw': draw,
+          'awayWin': awayWin,
+          'over25': over25,
+          'under25': under25,
+          'bothTeamsScore': bothTeamsScore,
+          'bothTeamsNoScore': bothTeamsNoScore,
+          'homeWinOrDraw': homeWinOrDraw,
+          'awayWinOrDraw': awayWinOrDraw,
+          'homeOrAway': homeOrAway,
+        };
       }
       return null;
     } catch (e) {
+      // Pokud API nevrátí kurzy, vrátit null (budou použity výchozí)
       return null;
     }
   }
@@ -787,238 +766,3 @@ class Match {
   }
 }
 
-class MatchDetails {
-  final int fixtureId;
-  final List<Goal> goals;
-  final List<MatchCard> cards;
-  final List<Substitution> substitutions;
-  final MatchStatistics statistics;
-  final Lineup homeLineup;
-  final Lineup awayLineup;
-
-  MatchDetails({
-    required this.fixtureId,
-    required this.goals,
-    required this.cards,
-    required this.substitutions,
-    required this.statistics,
-    required this.homeLineup,
-    required this.awayLineup,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'fixtureId': fixtureId,
-      'goals': goals.map((g) => g.toMap()).toList(),
-      'cards': cards.map((c) => c.toMap()).toList(),
-      'substitutions': substitutions.map((s) => s.toMap()).toList(),
-      'statistics': statistics.toMap(),
-      'homeLineup': homeLineup.toMap(),
-      'awayLineup': awayLineup.toMap(),
-    };
-  }
-
-  factory MatchDetails.fromMap(Map<String, dynamic> map) {
-    return MatchDetails(
-      fixtureId: map['fixtureId'] ?? 0,
-      goals: (map['goals'] as List?)?.map((g) => Goal.fromMap(g)).toList() ?? [],
-      cards: (map['cards'] as List?)?.map((c) => MatchCard.fromMap(c)).toList() ?? [],
-      substitutions: (map['substitutions'] as List?)?.map((s) => Substitution.fromMap(s)).toList() ?? [],
-      statistics: MatchStatistics.fromMap(map['statistics'] ?? {}),
-      homeLineup: Lineup.fromMap(map['homeLineup'] ?? {}),
-      awayLineup: Lineup.fromMap(map['awayLineup'] ?? {}),
-    );
-  }
-}
-
-class Goal {
-  final int minute;
-  final String player;
-  final String team; // 'home' nebo 'away'
-  final bool isOwnGoal;
-  final bool isPenalty;
-  final String assist; // Jméno hráče, který asistoval
-
-  Goal({
-    required this.minute,
-    required this.player,
-    required this.team,
-    this.isOwnGoal = false,
-    this.isPenalty = false,
-    this.assist = '',
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'minute': minute,
-      'player': player,
-      'team': team,
-      'isOwnGoal': isOwnGoal,
-      'isPenalty': isPenalty,
-      'assist': assist,
-    };
-  }
-
-  factory Goal.fromMap(Map<String, dynamic> map) {
-    return Goal(
-      minute: map['minute'] ?? 0,
-      player: map['player'] ?? '',
-      team: map['team'] ?? '',
-      isOwnGoal: map['isOwnGoal'] ?? false,
-      isPenalty: map['isPenalty'] ?? false,
-      assist: map['assist'] ?? '',
-    );
-  }
-}
-
-class MatchCard {
-  final int minute;
-  final String player;
-  final String team; // 'home' nebo 'away'
-  final String type; // 'yellow' nebo 'red'
-
-  MatchCard({
-    required this.minute,
-    required this.player,
-    required this.team,
-    required this.type,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'minute': minute,
-      'player': player,
-      'team': team,
-      'type': type,
-    };
-  }
-
-  factory MatchCard.fromMap(Map<String, dynamic> map) {
-    return MatchCard(
-      minute: map['minute'] ?? 0,
-      player: map['player'] ?? '',
-      team: map['team'] ?? '',
-      type: map['type'] ?? '',
-    );
-  }
-}
-
-class Substitution {
-  final int minute;
-  final String playerOut;
-  final String playerIn;
-  final String team; // 'home' nebo 'away'
-
-  Substitution({
-    required this.minute,
-    required this.playerOut,
-    required this.playerIn,
-    required this.team,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'minute': minute,
-      'playerOut': playerOut,
-      'playerIn': playerIn,
-      'team': team,
-    };
-  }
-
-  factory Substitution.fromMap(Map<String, dynamic> map) {
-    return Substitution(
-      minute: map['minute'] ?? 0,
-      playerOut: map['playerOut'] ?? '',
-      playerIn: map['playerIn'] ?? '',
-      team: map['team'] ?? '',
-    );
-  }
-}
-
-class MatchStatistics {
-  final Map<String, int> homeStats;
-  final Map<String, int> awayStats;
-
-  MatchStatistics({
-    required this.homeStats,
-    required this.awayStats,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'homeStats': homeStats,
-      'awayStats': awayStats,
-    };
-  }
-
-  factory MatchStatistics.fromMap(Map<String, dynamic> map) {
-    return MatchStatistics(
-      homeStats: Map<String, int>.from(map['homeStats'] ?? {}),
-      awayStats: Map<String, int>.from(map['awayStats'] ?? {}),
-    );
-  }
-}
-
-class Lineup {
-  final String formation;
-  final List<LineupPlayer> startingXI;
-  final List<LineupPlayer> substitutes;
-
-  Lineup({
-    required this.formation,
-    required this.startingXI,
-    required this.substitutes,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'formation': formation,
-      'startingXI': startingXI.map((p) => p.toMap()).toList(),
-      'substitutes': substitutes.map((p) => p.toMap()).toList(),
-    };
-  }
-
-  factory Lineup.fromMap(Map<String, dynamic> map) {
-    return Lineup(
-      formation: map['formation'] ?? '',
-      startingXI: (map['startingXI'] as List?)?.map((p) => LineupPlayer.fromMap(p)).toList() ?? [],
-      substitutes: (map['substitutes'] as List?)?.map((p) => LineupPlayer.fromMap(p)).toList() ?? [],
-    );
-  }
-}
-
-class LineupPlayer {
-  final int id;
-  final String name;
-  final int number;
-  final String position;
-  final String? grid; // Pozice na hřišti (např. "4:3")
-
-  LineupPlayer({
-    required this.id,
-    required this.name,
-    required this.number,
-    required this.position,
-    this.grid,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'number': number,
-      'position': position,
-      'grid': grid,
-    };
-  }
-
-  factory LineupPlayer.fromMap(Map<String, dynamic> map) {
-    return LineupPlayer(
-      id: map['id'] ?? 0,
-      name: map['name'] ?? '',
-      number: map['number'] ?? 0,
-      position: map['position'] ?? '',
-      grid: map['grid'],
-    );
-  }
-}

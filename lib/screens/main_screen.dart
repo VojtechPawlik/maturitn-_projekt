@@ -11,8 +11,9 @@ import 'teams_screen.dart';
 import 'settings_screen.dart';
 import 'standings_screen.dart';
 import 'team_detail_screen.dart';
-import 'match_detail_screen.dart';
+import 'betting_dialog.dart';
 import '../services/localization_service.dart';
+import '../models/betting_models.dart';
 
 
 class MainScreen extends StatefulWidget {
@@ -39,12 +40,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   bool _isLoadingMatches = true; // Začít s true, aby se zobrazil loading
   bool _isLoadingMatchesInProgress = false; // Zabraňuje více současným voláním
   
+  // Cache pro kurzy zápasů
+  Map<int, MatchOdds> _matchOddsCache = {};
+  
   // Týmy pro zobrazení oblíbených
   List<Team> _allTeams = [];
   bool _isLoadingTeams = false;
   Map<String, int> _teamPositions = {}; // Mapování názvu týmu na pozici v tabulce
   
   bool _isLoggedIn = false;
+  double _userBalance = 0.0;
   
   // Animace pro logo v AppBar
   late AnimationController _titleAnimationController;
@@ -76,6 +81,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _loadAllMatchesForCalendar();
     _loadTeams();
     _loadFavoriteTeams();
+    _loadBalance();
     _setupAutoUpdate();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerCalendarOnToday();
@@ -237,9 +243,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             allMatchesMap[matchDateKey]!.add(match);
             processedMatchIds.add(match.id);
             
-            if (match.isLive || match.isFinished) {
-              _loadMatchDetails(match.id);
-            }
           }
         } catch (e) {
           try {
@@ -264,9 +267,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               allMatchesMap[matchDateKey]!.add(match);
               processedMatchIds.add(match.id);
               
-              if (match.isLive || match.isFinished) {
-                _loadMatchDetails(match.id);
-              }
             }
           } catch (e2) {
             // Ignorovat chyby při načítání z Firestore
@@ -357,16 +357,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _loadMatchDetails(int fixtureId) async {
-    try {
-      final details = await _firestoreService.getMatchDetails(fixtureId);
-      if (details == null) {
-        await _firestoreService.fetchAndSaveMatchDetails(fixtureId);
-      }
-    } catch (e) {
-      // Ignorovat chyby při načítání detailů
-    }
-  }
 
   // Načíst zápasy pro konkrétní datum
   Future<void> _loadMatchesForDate(DateTime date) async {
@@ -382,6 +372,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         setState(() {
           _matchesByDate = updatedMatches;
         });
+        // Načíst kurzy pro všechny zápasy
+        _loadOddsForMatches(firestoreMatches);
         return;
       }
 
@@ -396,13 +388,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       if (allowedMatches.isNotEmpty) {
         await _firestoreService.saveFixtures(date: date, matches: allowedMatches);
         
-        // Načíst a uložit detaily zápasů do Firestore (na pozadí, bez blokování UI)
-        for (var match in allowedMatches) {
-          // Načíst detaily pouze pro dokončené nebo živé zápasy
-          if (match.isFinished || match.isLive) {
-            _loadMatchDetails(match.id);
-          }
-        }
       }
       
       // Přidat do _matchesByDate
@@ -426,6 +411,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         setState(() {
           _matchesByDate = updatedMatches;
         });
+        // Načíst kurzy pro všechny zápasy
+        _loadOddsForMatches(allowedMatches);
       }
     } catch (e) {
       // Pokud API selže, zkusit načíst z Firestore
@@ -440,6 +427,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           setState(() {
             _matchesByDate = updatedMatches;
           });
+          // Načíst kurzy pro všechny zápasy
+          _loadOddsForMatches(matches);
         }
       } catch (e2) {
         // Ignorovat chyby
@@ -566,13 +555,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     // Pokud je uživatel přihlášený, načíst oblíbené týmy i při inicializaci
     else if (_isLoggedIn) {
       _loadFavoriteTeams();
+      _loadBalance();
     }
   }
 
   void _navigateToLogin() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
-    ).then((_) => _checkAuthStatus());
+    ).then((_) {
+      _checkAuthStatus();
+      _loadBalance();
+    });
   }
 
   void _navigateToProfile() {
@@ -581,9 +574,24 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     ).then((result) {
       if (result == true) {
         _checkAuthStatus();
+        _loadBalance();
         setState(() {});
       }
     });
+  }
+
+  // Načíst zůstatek peněz
+  Future<void> _loadBalance() async {
+    if (_isLoggedIn) {
+      final balance = await SessionManager().getBalance();
+      setState(() {
+        _userBalance = balance;
+      });
+    } else {
+      setState(() {
+        _userBalance = 0.0;
+      });
+    }
   }
 
   Future<void> _loadFavoriteTeams() async {
@@ -679,6 +687,37 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           },
         ),
         actions: [
+          // Zobrazení peněz
+          if (_isLoggedIn)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.account_balance_wallet,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${_userBalance.toStringAsFixed(0)} Kč',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (_isLoggedIn)
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -1489,6 +1528,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final isLive = match.isLive;
     final hasFavoriteTeam = _favoriteTeams.contains(match.homeTeam) || _favoriteTeams.contains(match.awayTeam);
     
+    // Načíst kurzy pro tento zápas (asynchronně, pokud ještě nejsou v cache)
+    if (!_matchOddsCache.containsKey(match.id)) {
+      _loadOddsForMatch(match.id);
+    }
+    final odds = _matchOddsCache[match.id];
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: isLive ? 4 : 2,
@@ -1500,17 +1545,27 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       ),
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MatchDetailScreen(match: match),
-            ),
-          );
+          // Zkontrolovat, zda je uživatel přihlášen
+          if (!_isLoggedIn) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Pro sázení se musíte přihlásit'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 2),
+              ),
+            );
+            return;
+          }
+          
+          showDialog(
+            context: context,
+            builder: (context) => BettingDialog(match: match),
+          ).then((_) => _loadBalance()); // Obnovit zůstatek po zavření dialogu
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           children: [
             // Liga a kolo
             Row(
@@ -1647,10 +1702,78 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 ),
               ),
             ],
+            // Kurzy
+            if (odds != null) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    // Výhra domácích
+                    _buildOddsItem(
+                      '1',
+                      odds.homeWin.toStringAsFixed(2),
+                      match.isFinished && match.homeScore != null && match.awayScore != null
+                          ? (match.homeScore! > match.awayScore!)
+                          : null,
+                    ),
+                    // Remíza
+                    _buildOddsItem(
+                      'X',
+                      odds.draw.toStringAsFixed(2),
+                      match.isFinished && match.homeScore != null && match.awayScore != null
+                          ? (match.homeScore == match.awayScore)
+                          : null,
+                    ),
+                    // Výhra hostů
+                    _buildOddsItem(
+                      '2',
+                      odds.awayWin.toStringAsFixed(2),
+                      match.isFinished && match.homeScore != null && match.awayScore != null
+                          ? (match.awayScore! > match.homeScore!)
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
+        ),
       ),
-      ),
+    );
+  }
+
+  Widget _buildOddsItem(String label, String oddsValue, bool? isWinner) {
+    final isWinning = isWinner == true;
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          oddsValue,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: isWinning ? Colors.green : const Color(0xFF3E5F44),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1665,6 +1788,91 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       final minute = match.date.minute.toString().padLeft(2, '0');
       return '$hour:$minute';
     }
+  }
+
+  Future<void> _loadOddsForMatches(List<Match> matches) async {
+    // Načíst kurzy pro všechny zápasy asynchronně
+    for (var match in matches) {
+      if (!_matchOddsCache.containsKey(match.id)) {
+        _loadOddsForMatch(match.id);
+      }
+    }
+  }
+
+  Future<void> _loadOddsForMatch(int matchId) async {
+    // Pokud už jsou kurzy v cache, nepotřebujeme je načítat znovu
+    if (_matchOddsCache.containsKey(matchId)) {
+      return;
+    }
+
+    try {
+      // Nejdříve zkusit načíst z Firestore
+      final odds = await _firestoreService.getMatchOdds(matchId);
+      
+      if (odds != null) {
+        setState(() {
+          _matchOddsCache[matchId] = odds;
+        });
+        return;
+      }
+
+      // Pokud nejsou v Firestore, zkusit načíst z API
+      final apiService = ApiFootballService();
+      await apiService.initializeApiKey();
+      final apiOddsData = await apiService.getMatchOdds(matchId);
+      
+      if (apiOddsData != null) {
+        final matchOdds = MatchOdds(
+          matchId: matchId,
+          homeWin: apiOddsData['homeWin'] ?? 2.0,
+          draw: apiOddsData['draw'] ?? 3.0,
+          awayWin: apiOddsData['awayWin'] ?? 2.5,
+          over25: apiOddsData['over25'],
+          under25: apiOddsData['under25'],
+          bothTeamsScore: apiOddsData['bothTeamsScore'],
+          bothTeamsNoScore: apiOddsData['bothTeamsNoScore'],
+          homeWinOrDraw: apiOddsData['homeWinOrDraw'],
+          awayWinOrDraw: apiOddsData['awayWinOrDraw'],
+          homeOrAway: apiOddsData['homeOrAway'],
+        );
+        
+        // Uložit do Firestore pro příště
+        await _firestoreService.saveMatchOdds(matchId, matchOdds);
+        
+        setState(() {
+          _matchOddsCache[matchId] = matchOdds;
+        });
+      } else {
+        // Pokud API nevrátí kurzy, vygenerovat lokální
+        final localOdds = _generateLocalOdds(matchId);
+        setState(() {
+          _matchOddsCache[matchId] = localOdds;
+        });
+      }
+    } catch (e) {
+      // V případě chyby použít lokální kurzy
+      final localOdds = _generateLocalOdds(matchId);
+      setState(() {
+        _matchOddsCache[matchId] = localOdds;
+      });
+    }
+  }
+
+  MatchOdds _generateLocalOdds(int matchId) {
+    // Základní kurzy (můžeme je upravit podle týmu, formy atd.)
+    return MatchOdds(
+      matchId: matchId,
+      homeWin: 2.0,
+      draw: 3.0,
+      awayWin: 2.5,
+      over25: 1.9,
+      under25: 1.9,
+      bothTeamsScore: 1.8,
+      bothTeamsNoScore: 2.0,
+      homeWinOrDraw: 1.35,
+      awayWinOrDraw: 1.4,
+      homeOrAway: 1.5,
+    );
   }
 }
 

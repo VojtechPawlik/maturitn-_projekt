@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/localization_service.dart';
 import '../services/firestore_service.dart';
 import '../services/api_football_service.dart';
+import 'betting_history_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -43,6 +44,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: _notificationsEnabled,
               onChanged: _saveNotifications,
             ),
+          ),
+          const SizedBox(height: 24),
+          _buildSectionHeader('Sázení'),
+          _buildSettingsTile(
+            icon: Icons.history,
+            title: 'Historie sázek',
+            subtitle: 'Zobrazit všechny vaše sázky',
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BettingHistoryScreen(),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 24),
           _buildSectionHeader('Správa dat'),

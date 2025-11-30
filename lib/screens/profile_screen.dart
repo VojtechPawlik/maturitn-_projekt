@@ -52,9 +52,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Načíst oblíbené týmy vázané na email uživatele
       if (userEmail != null) {
         final favoriteTeamsList = prefs.getStringList('favorite_teams_$userEmail') ?? [];
-        setState(() {
-          _favoriteTeams = favoriteTeamsList.toSet();
-        });
+      setState(() {
+        _favoriteTeams = favoriteTeamsList.toSet();
+      });
       } else {
         setState(() {
           _favoriteTeams = {};

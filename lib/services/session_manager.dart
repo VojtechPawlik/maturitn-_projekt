@@ -16,6 +16,7 @@ class SessionManager {
   static const String _keyUserNickname = 'user_nickname';
   static const String _keyProfileImagePath = 'profile_image_path';
   static const String _keyProfileImageUrl = 'profile_image_url';
+  static const double _defaultBalance = 1000.0; // Výchozí zůstatek při registraci
 
   // Gettery
   bool get isLoggedIn => _isLoggedIn;
@@ -38,6 +39,57 @@ class SessionManager {
     }
     
     _profileImagePath = prefs.getString('profile_image_path');
+  }
+
+  // Získat zůstatek peněz uživatele
+  Future<double> getBalance() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userEmail = _userEmail;
+    
+    if (userEmail == null) {
+      return 0.0;
+    }
+    
+    final balance = prefs.getDouble('balance_$userEmail');
+    if (balance == null) {
+      // Pokud uživatel nemá zůstatek, nastavit výchozí
+      await setBalance(_defaultBalance);
+      return _defaultBalance;
+    }
+    
+    return balance;
+  }
+
+  // Nastavit zůstatek peněz uživatele
+  Future<void> setBalance(double balance) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userEmail = _userEmail;
+    
+    if (userEmail != null) {
+      await prefs.setDouble('balance_$userEmail', balance);
+    }
+  }
+
+  // Přidat peníze k zůstatku
+  Future<bool> addBalance(double amount) async {
+    if (amount <= 0) return false;
+    
+    final currentBalance = await getBalance();
+    await setBalance(currentBalance + amount);
+    return true;
+  }
+
+  // Odebrat peníze ze zůstatku
+  Future<bool> subtractBalance(double amount) async {
+    if (amount <= 0) return false;
+    
+    final currentBalance = await getBalance();
+    if (currentBalance < amount) {
+      return false; // Nedostatek peněz
+    }
+    
+    await setBalance(currentBalance - amount);
+    return true;
   }
 
   // Přihlášení uživatele
