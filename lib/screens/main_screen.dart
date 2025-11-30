@@ -14,6 +14,7 @@ import 'team_detail_screen.dart';
 import 'betting_dialog.dart';
 import '../services/localization_service.dart';
 import '../models/betting_models.dart';
+import 'leaderboard_screen.dart';
 
 
 class MainScreen extends StatefulWidget {
@@ -24,7 +25,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
-  int _currentIndex = 0; // Hlavní stránka je první (index 0)
+  int _currentIndex = 2; // Home je na indexu 2
   DateTime _selectedDate = DateTime.now();
   final ScrollController _calendarController = ScrollController();
   Set<String> _favoriteTeams = {};
@@ -77,11 +78,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     });
     
     _loadLeagues();
-    _initializeApp();
+    _initializeApp().then((_) {
+      _loadBalance();
+    });
     _loadAllMatchesForCalendar();
     _loadTeams();
     _loadFavoriteTeams();
-    _loadBalance();
     _setupAutoUpdate();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerCalendarOnToday();
@@ -582,17 +584,31 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   // Načíst zůstatek peněz
   Future<void> _loadBalance() async {
-    if (_isLoggedIn) {
-      final balance = await SessionManager().getBalance();
-      setState(() {
-        _userBalance = balance;
-      });
-    } else {
-      setState(() {
-        _userBalance = 0.0;
-      });
+    try {
+      if (_isLoggedIn) {
+        final balance = await SessionManager().getBalance();
+        if (mounted) {
+          setState(() {
+            _userBalance = balance;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _userBalance = 0.0;
+          });
+        }
+      }
+    } catch (e) {
+      // Chyba při načítání - ignorovat
+      if (mounted) {
+        setState(() {
+          _userBalance = 0.0;
+        });
+      }
     }
   }
+
 
   Future<void> _loadFavoriteTeams() async {
     try {
@@ -697,24 +713,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.account_balance_wallet,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${_userBalance.toStringAsFixed(0)} Kč',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  '${_userBalance.toStringAsFixed(0)}!',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
@@ -766,9 +771,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          _buildMainScreen(), // index 0: Home
+          _buildFavoriteTeamsScreen(), // index 0: Oblíbené
           _buildCompetitionsScreen(), // index 1: Soutěže
-          TeamsScreen( // index 2: Týmy
+          _buildMainScreen(), // index 2: Home
+          TeamsScreen( // index 3: Týmy
             favoriteTeams: _favoriteTeams,
             isLoggedIn: _isLoggedIn,
             onFavoritesChanged: (newFavorites) {
@@ -778,7 +784,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               _saveFavoriteTeams();
             },
           ),
-          _buildFavoriteTeamsScreen(), // index 3: Oblíbené
+          const LeaderboardScreen(), // index 4: Žebříček
         ],
       ),
       bottomNavigationBar: Container(
@@ -806,10 +812,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(Icons.home, 0), // Home
+              _buildNavItem(Icons.favorite, 0), // Oblíbené
               _buildNavItem(Icons.emoji_events, 1), // Soutěže
-              _buildNavItem(Icons.groups, 2), // Týmy
-              _buildNavItem(Icons.favorite, 3), // Oblíbené
+              _buildNavItem(Icons.home, 2), // Home
+              _buildNavItem(Icons.groups, 3), // Týmy
+              _buildNavItem(Icons.leaderboard, 4), // Žebříček
             ],
           ),
         ),
@@ -946,45 +953,48 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               child: Stack(
                 children: [
                   // Text uprostřed
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Název týmu
-                        Text(
-                          team.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        // Liga
-                        Text(
-                          team.league,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        // Pozice v tabulce
-                        if (position != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 80),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Název týmu
                           Text(
-                            '$position. místo',
+                            team.name,
                             style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF3E5F44),
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          // Liga
+                          Text(
+                            team.league,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
                             ),
                             textAlign: TextAlign.center,
                           ),
-                      ],
+                          const SizedBox(height: 4),
+                          // Pozice v tabulce
+                          if (position != null)
+                            Text(
+                              '$position. místo',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF3E5F44),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                   // Logo týmu vlevo

@@ -344,7 +344,7 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Částka: ${bet.amount.toStringAsFixed(2)} Kč',
+                                            'Částka: ${bet.amount.toStringAsFixed(2)}!',
                                             style: TextStyle(
                                               fontSize: 14,
                                               color: Colors.grey[700],
@@ -365,7 +365,7 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
                                           crossAxisAlignment: CrossAxisAlignment.end,
                                           children: [
                                             Text(
-                                              'Výhra: ${bet.payout!.toStringAsFixed(2)} Kč',
+                                              'Výhra: ${bet.payout!.toStringAsFixed(2)}!',
                                               style: const TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.bold,
@@ -379,7 +379,7 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
                                           crossAxisAlignment: CrossAxisAlignment.end,
                                           children: [
                                             Text(
-                                              'Možná výhra: ${(bet.amount * bet.odds).toStringAsFixed(2)} Kč',
+                                              'Možná výhra: ${(bet.amount * bet.odds).toStringAsFixed(2)}!',
                                               style: const TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.bold,

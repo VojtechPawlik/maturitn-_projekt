@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
@@ -19,11 +20,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _profileImageUrl;
   String? _originalProfileImageUrl;
   String _userEmail = 'user@example.com';
+  String? _nickname;
+  String? _originalNickname;
   bool _isLoading = false;
+  bool _canClaimDailyReward = false;
   List<Team> _teams = [];
   List<Team> _filteredTeams = [];
   Set<String> _favoriteTeams = {};
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _nicknameController = TextEditingController();
 
   @override
   void initState() {
@@ -42,6 +47,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _filterTeams(); // Aktualizovat seznam týmů s novými oblíbenými
       }
     });
+    // Zkontrolovat každodenní odměnu při každém zobrazení
+    _checkDailyReward();
   }
 
   Future<void> _loadFavoriteTeams() async {
@@ -68,6 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _nicknameController.dispose();
     super.dispose();
   }
 
@@ -105,19 +113,165 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _userEmail = session.userEmail ?? 'user@example.com';
       _profileImageUrl = session.profileImageUrl;
       _originalProfileImageUrl = session.profileImageUrl;
+      _nickname = session.userNickname;
+      _originalNickname = session.userNickname;
+      _nicknameController.text = _nickname ?? '';
+    });
+    
+    // Zkontrolovat, zda může získat každodenní odměnu
+    _checkDailyReward();
+  }
+
+  Future<void> _checkDailyReward() async {
+    final canClaim = await SessionManager().canClaimDailyReward();
+    setState(() {
+      _canClaimDailyReward = canClaim;
     });
   }
 
-  bool get _hasChanges => _profileImageUrl != _originalProfileImageUrl;
+  Future<void> _shareFriendLink() async {
+    final userEmail = SessionManager().userEmail;
+    if (userEmail == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nejste přihlášeni'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Zobrazit dialog pro zadání emailu kamaráda
+    final friendEmailController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Přidat kamaráda'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Zadejte email kamaráda, kterého chcete přidat do žebříčku:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: friendEmailController,
+              decoration: const InputDecoration(
+                labelText: 'Email kamaráda',
+                hintText: 'kamarad@example.com',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Zrušit'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final friendEmail = friendEmailController.text.trim();
+              if (friendEmail.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Zadejte email kamaráda'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              if (friendEmail == userEmail) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Nemůžete přidat sami sebe'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+              
+              // Přidat kamaráda
+              setState(() {
+                _isLoading = true;
+              });
+
+              final success = await _firestoreService.addFriend(
+                userEmail,
+                friendEmail,
+              );
+
+              setState(() {
+                _isLoading = false;
+              });
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Kamarád byl přidán do žebříčku'
+                          : 'Nepodařilo se přidat kamaráda (možná už je přidán)',
+                    ),
+                    backgroundColor: success ? Colors.green : Colors.orange,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3E5F44),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Přidat'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _claimDailyReward() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final success = await SessionManager().claimDailyReward();
+      
+      if (success) {
+        setState(() {
+          _canClaimDailyReward = false;
+        });
+      }
+    } catch (e) {
+      // Chyba při vyzvedávání odměny - tichá chyba
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  bool get _hasChanges => 
+      _profileImageUrl != _originalProfileImageUrl ||
+      _nickname != _originalNickname;
 
   Future<void> _saveChanges() async {
     if (!_hasChanges) return;
 
     setState(() => _isLoading = true);
     try {
-      await SessionManager().updateUserData(profileImageUrl: _profileImageUrl);
+      // Předat prázdný string pokud je přezdívka smazána, jinak hodnotu nebo null
+      final nicknameToSave = _nicknameController.text.isEmpty ? '' : _nickname;
+      
+      await SessionManager().updateUserData(
+        profileImageUrl: _profileImageUrl,
+        nickname: nicknameToSave,
+      );
       setState(() {
         _originalProfileImageUrl = _profileImageUrl;
+        _originalNickname = _nickname;
       });
       
       if (mounted) {
@@ -431,6 +585,178 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             const SizedBox(height: 32),
             
+            // Přezdívka
+            TextField(
+              controller: _nicknameController,
+              decoration: InputDecoration(
+                labelText: 'Přezdívka',
+                labelStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF3E5F44),
+                ),
+                hintText: 'Zadejte přezdívku',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF3E5F44),
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _nickname = value.isEmpty ? null : value;
+                });
+              },
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Každodenní odměna a Přidat kamaráda vedle sebe
+            Row(
+              children: [
+                // Každodenní odměna
+                Expanded(
+                  child: Card(
+                    elevation: 2,
+                    color: const Color(0xFFFFFDE7).withOpacity(0.6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(
+                        color: Color(0xFF3E5F44),
+                        width: 2,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            '+ 20! denně',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF3E5F44),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 40,
+                            child: ElevatedButton(
+                              onPressed: (_isLoading || !_canClaimDailyReward) ? null : _claimDailyReward,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF3E5F44),
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : Text(
+                                      _canClaimDailyReward ? 'Vyzvednout' : 'Vyzvednuto',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(width: 12),
+                
+                // Přidat kamaráda
+                Expanded(
+                  child: Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(
+                                Icons.person_add,
+                                color: Color(0xFF3E5F44),
+                                size: 18,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Přátelé',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF3E5F44),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 40,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _shareFriendLink,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF3E5F44),
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text(
+                                'Přidat',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
             // Informační karta
             Card(
               child: Padding(
@@ -457,7 +783,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
             
             // Tlačítko uložit změny
             SizedBox(

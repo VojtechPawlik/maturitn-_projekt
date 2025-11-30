@@ -426,6 +426,62 @@ class FirestoreService {
     }
   }
 
+  // ---------------------------
+  // PŘÁTELÉ (FRIENDS)
+  // ---------------------------
+
+  // Přidat kamaráda
+  Future<bool> addFriend(String userEmail, String friendEmail) async {
+    try {
+      // Zkontrolovat, zda už nejsou přátelé
+      final currentFriends = await getUserFriends(userEmail);
+      if (currentFriends.contains(friendEmail)) {
+        return false; // Už jsou přátelé
+      }
+
+      // Přidat do seznamu přátel uživatele
+      await _firestore
+          .collection('users')
+          .doc(userEmail)
+          .collection('friends')
+          .doc(friendEmail)
+          .set({
+        'email': friendEmail,
+        'addedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Přidat opačným směrem (oboustranné přátelství)
+      await _firestore
+          .collection('users')
+          .doc(friendEmail)
+          .collection('friends')
+          .doc(userEmail)
+          .set({
+        'email': userEmail,
+        'addedAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Načíst seznam přátel uživatele
+  Future<List<String>> getUserFriends(String userEmail) async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(userEmail)
+          .collection('friends')
+          .get();
+
+      return snapshot.docs.map((doc) => doc.id).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
   // Smazat zápasy starší než 11 dní
   Future<void> _deleteOldFixtures() async {
     try {

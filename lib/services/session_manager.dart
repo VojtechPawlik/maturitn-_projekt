@@ -134,11 +134,20 @@ class SessionManager {
   Future<void> updateUserData({String? nickname, String? profileImagePath, String? profileImageUrl}) async {
     final prefs = await SharedPreferences.getInstance();
     
+    // Pokud je předán nickname, uložit nebo smazat
     if (nickname != null) {
-      _userNickname = nickname;
-      // Uložit přezdívku pro konkrétní email
-      if (_userEmail != null) {
-        await prefs.setString('nickname_$_userEmail', nickname);
+      if (nickname.isNotEmpty) {
+        _userNickname = nickname;
+        // Uložit přezdívku pro konkrétní email
+        if (_userEmail != null) {
+          await prefs.setString('nickname_$_userEmail', nickname);
+        }
+      } else {
+        // Smazat přezdívku (prázdný string)
+        _userNickname = null;
+        if (_userEmail != null) {
+          await prefs.remove('nickname_$_userEmail');
+        }
       }
     }
     
@@ -188,5 +197,80 @@ class SessionManager {
     } catch (e) {
       return false;
     }
+  }
+
+  // Získat zůstatek pro konkrétního uživatele (podle emailu)
+  Future<double> getBalanceForUser(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    final balance = prefs.getDouble('balance_$email');
+    return balance ?? 0.0;
+  }
+
+  // Získat přezdívku pro konkrétního uživatele (podle emailu)
+  Future<String?> getNicknameForUser(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('nickname_$email');
+  }
+
+  // Zkontrolovat, zda může uživatel získat každodenní odměnu
+  Future<bool> canClaimDailyReward() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userEmail = _userEmail;
+    
+    if (userEmail == null) {
+      return false;
+    }
+
+    final lastRewardDateKey = 'last_daily_reward_$userEmail';
+    final lastRewardDateStr = prefs.getString(lastRewardDateKey);
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    // Pokud uživatel dostal odměnu dnes, nemůže ji získat znovu
+    if (lastRewardDateStr != null) {
+      final lastRewardDate = DateTime.parse(lastRewardDateStr);
+      final lastRewardDay = DateTime(lastRewardDate.year, lastRewardDate.month, lastRewardDate.day);
+      
+      if (lastRewardDay.isAtSameMomentAs(today)) {
+        return false; // Už dostal odměnu dnes
+      }
+    }
+    
+    return true; // Může získat odměnu
+  }
+
+  // Udělit každodenní odměnu
+  Future<bool> claimDailyReward() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userEmail = _userEmail;
+    
+    if (userEmail == null) {
+      return false;
+    }
+
+    final lastRewardDateKey = 'last_daily_reward_$userEmail';
+    final lastRewardDateStr = prefs.getString(lastRewardDateKey);
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    // Pokud uživatel dostal odměnu dnes, nedat ji znovu
+    if (lastRewardDateStr != null) {
+      final lastRewardDate = DateTime.parse(lastRewardDateStr);
+      final lastRewardDay = DateTime(lastRewardDate.year, lastRewardDate.month, lastRewardDate.day);
+      
+      if (lastRewardDay.isAtSameMomentAs(today)) {
+        return false; // Už dostal odměnu dnes
+      }
+    }
+    
+    // Udělit odměnu 20!
+    await addBalance(20.0);
+    
+    // Uložit datum odměny
+    await prefs.setString(lastRewardDateKey, today.toIso8601String());
+    
+    return true; // Odměna byla udělena
   }
 }

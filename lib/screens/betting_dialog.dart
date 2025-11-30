@@ -325,7 +325,7 @@ class _BettingDialogState extends State<BettingDialog> {
         if (available <= 0) {
           _fieldErrors[betType] = 'Nemáte dostatek peněz';
         } else {
-          _fieldErrors[betType] = 'Dostupné: ${available.toStringAsFixed(0)} Kč';
+          _fieldErrors[betType] = 'Dostupné: ${available.toStringAsFixed(0)}!';
         }
         // Automaticky upravit hodnotu na maximum
         if (amount > available && available > 0) {
@@ -379,7 +379,7 @@ class _BettingDialogState extends State<BettingDialog> {
 
     if (totalAmount > _userBalance) {
       setState(() {
-        _generalError = 'Celková částka všech sázek (${totalAmount.toStringAsFixed(0)} Kč) přesahuje váš zůstatek (${_userBalance.toStringAsFixed(0)} Kč)';
+        _generalError = 'Celková částka všech sázek (${totalAmount.toStringAsFixed(0)}!) přesahuje váš zůstatek (${_userBalance.toStringAsFixed(0)}!)';
       });
       return;
     }
@@ -594,13 +594,13 @@ class _BettingDialogState extends State<BettingDialog> {
                             ),
                             if (canBet) ...[
                               const SizedBox(height: 8),
-                              Text(
-                                'Zůstatek: ${_userBalance.toStringAsFixed(0)} Kč',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 11,
-                                ),
-                              ),
+                                        Text(
+                                          'Zůstatek: ${_userBalance.toStringAsFixed(0)}!',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                          ),
+                                        ),
                             ],
                           ],
                         ),
@@ -851,7 +851,7 @@ class _BettingDialogState extends State<BettingDialog> {
                                                 ),
                                               ),
                                               Text(
-                                                '${_totalPotentialWin.toStringAsFixed(2)} Kč',
+                                                '${_totalPotentialWin.toStringAsFixed(2)}!',
                                                 style: const TextStyle(
                                                   fontSize: 18,
                                                   fontWeight: FontWeight.bold,
@@ -954,8 +954,8 @@ class _BettingDialogState extends State<BettingDialog> {
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              hintText: 'Zadejte částku (max: ${_getMaxAmountForBet(betType).toStringAsFixed(0)} Kč)',
-              suffixText: 'Kč',
+              hintText: 'Zadejte částku (max: ${_getMaxAmountForBet(betType).toStringAsFixed(0)}!)',
+              suffixText: '!',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
