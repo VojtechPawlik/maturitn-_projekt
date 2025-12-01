@@ -44,15 +44,17 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       // Přidat uživatele samotného do seznamu
       final allUsers = [userEmail, ...friends];
       
-      // Načíst zůstatky všech uživatelů
+      // Načíst zůstatky, přezdívky a profilové obrázky všech uživatelů
       final entries = <LeaderboardEntry>[];
       for (var email in allUsers) {
         final balance = await _sessionManager.getBalanceForUser(email);
         final nickname = await _sessionManager.getNicknameForUser(email);
+        final profileImageUrl = await _sessionManager.getProfileImageForUser(email);
         entries.add(LeaderboardEntry(
           email: email,
           nickname: nickname,
           balance: balance,
+          profileImageUrl: profileImageUrl,
           isCurrentUser: email == userEmail,
         ));
       }
@@ -100,12 +102,48 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   ),
                 )
               : _leaderboard.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Zatím nemáte žádné přátele v žebříčku',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'Zatím nemáte žádné přátele v žebříčku',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                                textAlign: TextAlign.left,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Přidejte kamaráda pomocí emailu v profilu.\n'
+                                'Jakmile začnete sázet, porovnáme vaše ! (virtuální peníze)\n'
+                                'a zobrazíme pořadí vás a vašich kamarádů.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
+                                textAlign: TextAlign.left,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     )
@@ -113,11 +151,47 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       onRefresh: _loadLeaderboard,
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: _leaderboard.length,
+                        itemCount: _leaderboard.length + 1,
                         itemBuilder: (context, index) {
-                          final entry = _leaderboard[index];
-                          final position = index + 1;
-                          
+                          if (index == 0) {
+                            // Úvodní karta, která vysvětluje žebříček
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF3E5F44).withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Žebříček kamarádů',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF3E5F44),
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Porovnáváme vás a vaše kamarády podle počtu ! (virtuálních peněz).\n'
+                                      'Čím více ! máte, tím výše v žebříčku se zobrazíte.',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          final entry = _leaderboard[index - 1];
+                          final position = index;
+
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
                             elevation: entry.isCurrentUser ? 4 : 2,
@@ -131,22 +205,57 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                   : BorderSide.none,
                             ),
                             child: ListTile(
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: _getPositionColor(position),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '$position',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                              leading: SizedBox(
+                                width: 48,
+                                height: 48,
+                                child: Stack(
+                                  children: [
+                                    // Profilová fotka
+                                    CircleAvatar(
+                                      radius: 24,
+                                      backgroundColor: Colors.grey[200],
+                                      backgroundImage: (entry.profileImageUrl != null &&
+                                              entry.profileImageUrl!.isNotEmpty &&
+                                              entry.profileImageUrl!.startsWith('http'))
+                                          ? NetworkImage(entry.profileImageUrl!)
+                                          : null,
+                                      child: (entry.profileImageUrl == null ||
+                                              entry.profileImageUrl!.isEmpty ||
+                                              !entry.profileImageUrl!.startsWith('http'))
+                                          ? const Icon(
+                                              Icons.person,
+                                              color: Color(0xFF3E5F44),
+                                            )
+                                          : null,
                                     ),
-                                  ),
+                                    // Odznak s pozicí
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        width: 22,
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          color: _getPositionColor(position),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '$position',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               title: Text(
@@ -203,12 +312,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 class LeaderboardEntry {
   final String email;
   final String? nickname;
+  final String? profileImageUrl;
   final double balance;
   final bool isCurrentUser;
 
   LeaderboardEntry({
     required this.email,
     this.nickname,
+    this.profileImageUrl,
     required this.balance,
     required this.isCurrentUser,
   });

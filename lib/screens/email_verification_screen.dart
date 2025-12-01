@@ -254,45 +254,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               child: const Text('Zpět k přihlášení'),
             ),
             
-            const SizedBox(height: 24),
-            
-            // Nápověda
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Color(0xFF0A84FF), size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'Nevíte si rady?',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF0A84FF),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '• Zkontrolujte složku spam/nevyžádaná pošta\n'
-                    '• Email může přijít s několikaminutovým zpožděním\n'
-                    '• Ujistěte se, že jste zadali správnou emailovou adresu',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

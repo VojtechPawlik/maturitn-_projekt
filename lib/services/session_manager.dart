@@ -212,6 +212,12 @@ class SessionManager {
     return prefs.getString('nickname_$email');
   }
 
+  // Získat URL profilového obrázku pro konkrétního uživatele (podle emailu)
+  Future<String?> getProfileImageForUser(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('profile_image_url_$email');
+  }
+
   // Zkontrolovat, zda může uživatel získat každodenní odměnu
   Future<bool> canClaimDailyReward() async {
     final prefs = await SharedPreferences.getInstance();
