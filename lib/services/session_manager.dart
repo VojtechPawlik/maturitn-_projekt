@@ -16,7 +16,7 @@ class SessionManager {
   static const String _keyUserNickname = 'user_nickname';
   static const String _keyProfileImagePath = 'profile_image_path';
   static const String _keyProfileImageUrl = 'profile_image_url';
-  static const double _defaultBalance = 1000.0; // Výchozí zůstatek při registraci
+  static const double _defaultBalance = 500.0; // Výchozí zůstatek při registraci
 
   // Gettery
   bool get isLoggedIn => _isLoggedIn;

@@ -29,8 +29,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     });
 
     try {
+      // Pokud ještě není session v paměti (např. po úplném restartu appky), načíst ji
+      if (!_sessionManager.isLoggedIn && _sessionManager.userEmail == null) {
+        await _sessionManager.loadSavedSession();
+      }
+
       final userEmail = _sessionManager.userEmail;
-      if (userEmail == null) {
+      final isLoggedIn = _sessionManager.isLoggedIn;
+
+      if (!isLoggedIn || userEmail == null) {
         setState(() {
           _isLoading = false;
           _errorMessage = 'Nejste přihlášeni';
