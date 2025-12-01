@@ -18,6 +18,7 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   Map<int, Match> _matchCache = {}; // Cache pro zápasy
+  final Set<String> _settledBets = {}; // Sázky, které už byly zúčtovány
 
   @override
   void initState() {
@@ -182,6 +183,41 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
     }
   }
 
+  // Zúčtovat sázku - přičíst výhru a uložit stav do Firestore
+  Future<void> _settleBet(Bet bet, bool isWon) async {
+    if (_settledBets.contains(bet.id)) return;
+    _settledBets.add(bet.id);
+
+    try {
+      String newStatus = isWon ? 'won' : 'lost';
+      double? payout = bet.payout;
+
+      if (isWon) {
+        // Spočítat výhru, pokud ještě není uložená
+        payout ??= bet.amount * bet.odds;
+        // Přičíst výhru k rozpočtu
+        await _sessionManager.addBalance(payout);
+      }
+
+      // Uložit aktualizovanou sázku do Firestore
+      final updatedBet = Bet(
+        id: bet.id,
+        userEmail: bet.userEmail,
+        matchId: bet.matchId,
+        betType: bet.betType,
+        amount: bet.amount,
+        odds: bet.odds,
+        placedAt: bet.placedAt,
+        status: newStatus,
+        payout: payout,
+      );
+
+      await _firestoreService.saveBet(updatedBet);
+    } catch (e) {
+      // Ignorovat chyby při zúčtování, aby neblokovaly UI
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,6 +273,11 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
                           final borderColor = isWon == null 
                               ? Colors.grey[300] 
                               : (isWon ? Colors.green : Colors.red);
+
+                          // Pokud je zápas dohraný a sázka ještě nebyla zúčtována, zúčtovat ji
+                          if (isWon != null && (bet.status == null || bet.status == 'pending') && !_settledBets.contains(bet.id)) {
+                            _settleBet(bet, isWon);
+                          }
                           
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -360,28 +401,15 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
                                           ),
                                         ],
                                       ),
-                                      if (bet.payout != null)
+                                      // Výhra při úspěšné sázce
+                                      if (isWon == true)
                                         Column(
                                           crossAxisAlignment: CrossAxisAlignment.end,
                                           children: [
                                             Text(
-                                              'Výhra: ${bet.payout!.toStringAsFixed(2)}!',
+                                              'Výhra: ${(bet.payout ?? (bet.amount * bet.odds)).toStringAsFixed(2)}!',
                                               style: const TextStyle(
                                                 fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.green,
-                                              ),
-                                            ),
-                                          ],
-                                        )
-                                      else if (bet.status == 'won')
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              'Možná výhra: ${(bet.amount * bet.odds).toStringAsFixed(2)}!',
-                                              style: const TextStyle(
-                                                fontSize: 14,
                                                 fontWeight: FontWeight.bold,
                                                 color: Colors.green,
                                               ),
