@@ -92,6 +92,30 @@ class SessionManager {
     return true;
   }
 
+  // Převést peníze mezi uživateli
+  Future<bool> transferBalance(String fromEmail, String toEmail, double amount) async {
+    if (amount <= 0) return false;
+    
+    // Zkontrolovat, zda má odesílatel dostatek peněz
+    final fromBalance = await getBalanceForUser(fromEmail);
+    if (fromBalance < amount) {
+      return false; // Nedostatek peněz
+    }
+    
+    // Odebrat peníze od odesílatele
+    final fromPrefs = await SharedPreferences.getInstance();
+    final fromKey = 'balance_$fromEmail';
+    await fromPrefs.setDouble(fromKey, fromBalance - amount);
+    
+    // Přidat peníze příjemci
+    final toBalance = await getBalanceForUser(toEmail);
+    final toPrefs = await SharedPreferences.getInstance();
+    final toKey = 'balance_$toEmail';
+    await toPrefs.setDouble(toKey, toBalance + amount);
+    
+    return true;
+  }
+
   // Přihlášení uživatele
   Future<void> loginUser({required String email, String? nickname, bool rememberMe = false}) async {
     final prefs = await SharedPreferences.getInstance();

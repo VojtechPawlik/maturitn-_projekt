@@ -24,7 +24,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   int _currentIndex = 2; // Home je na indexu 2
   DateTime _selectedDate = DateTime.now();
   final ScrollController _calendarController = ScrollController();
@@ -59,6 +59,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     
     _titleAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -88,6 +89,15 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerCalendarOnToday();
     });
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Aktualizovat zůstatek když se aplikace vrátí do popředí
+    if (state == AppLifecycleState.resumed && _isLoggedIn) {
+      _loadBalance();
+    }
   }
   
   // Načíst týmy z Firestore
@@ -509,6 +519,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _checkAuthStatus();
+    // Aktualizovat zůstatek když se obrazovka stane aktivní
+    if (_isLoggedIn && _currentIndex == 2) {
+      _loadBalance();
+    }
     // Nevolat _loadAllMatchesForCalendar() znovu, už se volá v initState
   }
 
@@ -529,6 +543,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _titleAnimationController.dispose();
     _calendarController.dispose();
     super.dispose();
@@ -828,7 +843,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final isSelected = _currentIndex == index;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _currentIndex = index),
+        onTap: () {
+          setState(() => _currentIndex = index);
+          // Aktualizovat zůstatek když se přepne na Home
+          if (index == 2 && _isLoggedIn) {
+            _loadBalance();
+          }
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(

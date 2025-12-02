@@ -482,6 +482,31 @@ class FirestoreService {
     }
   }
 
+  // Odebrat kamaráda
+  Future<bool> removeFriend(String userEmail, String friendEmail) async {
+    try {
+      // Odebrat z seznamu přátel uživatele
+      await _firestore
+          .collection('users')
+          .doc(userEmail)
+          .collection('friends')
+          .doc(friendEmail)
+          .delete();
+
+      // Odebrat opačným směrem (oboustranné přátelství)
+      await _firestore
+          .collection('users')
+          .doc(friendEmail)
+          .collection('friends')
+          .doc(userEmail)
+          .delete();
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Smazat zápasy starší než 11 dní
   Future<void> _deleteOldFixtures() async {
     try {

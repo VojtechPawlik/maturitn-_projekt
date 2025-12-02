@@ -15,11 +15,24 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   List<LeaderboardEntry> _leaderboard = [];
   bool _isLoading = true;
   String? _errorMessage;
+  String? _expandedEntryEmail; // Email kamaráda, jehož karta je rozbalená
+  String? _actionMode; // 'delete' nebo 'send' - režim akce v rozbalené kartě
+  final Map<String, TextEditingController> _amountControllers = {}; // Controllery pro částky
 
   @override
   void initState() {
     super.initState();
     _loadLeaderboard();
+  }
+
+  @override
+  void dispose() {
+    // Uvolnit všechny controllery
+    for (var controller in _amountControllers.values) {
+      controller.dispose();
+    }
+    _amountControllers.clear();
+    super.dispose();
   }
 
   Future<void> _loadLeaderboard() async {
@@ -198,103 +211,366 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
                           final entry = _leaderboard[index - 1];
                           final position = index;
+                          final isExpanded = _expandedEntryEmail == entry.email;
 
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: entry.isCurrentUser ? 4 : 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: entry.isCurrentUser
-                                  ? const BorderSide(
-                                      color: Color(0xFF3E5F44),
-                                      width: 2,
-                                    )
-                                  : BorderSide.none,
-                            ),
-                            child: ListTile(
-                              leading: SizedBox(
-                                width: 48,
-                                height: 48,
-                                child: Stack(
-                                  children: [
-                                    // Profilová fotka
-                                    CircleAvatar(
-                                      radius: 24,
-                                      backgroundColor: Colors.grey[200],
-                                      backgroundImage: (entry.profileImageUrl != null &&
-                                              entry.profileImageUrl!.isNotEmpty &&
-                                              entry.profileImageUrl!.startsWith('http'))
-                                          ? NetworkImage(entry.profileImageUrl!)
-                                          : null,
-                                      child: (entry.profileImageUrl == null ||
-                                              entry.profileImageUrl!.isEmpty ||
-                                              !entry.profileImageUrl!.startsWith('http'))
-                                          ? const Icon(
-                                              Icons.person,
-                                              color: Color(0xFF3E5F44),
-                                            )
-                                          : null,
-                                    ),
-                                    // Odznak s pozicí
-                                    Positioned(
-                                      right: 0,
-                                      bottom: 0,
-                                      child: Container(
-                                        width: 22,
-                                        height: 22,
-                                        decoration: BoxDecoration(
-                                          color: _getPositionColor(position),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 2,
-                                          ),
+                          return Column(
+                            children: [
+                              Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                elevation: entry.isCurrentUser ? 4 : 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: entry.isCurrentUser
+                                      ? const BorderSide(
+                                          color: Color(0xFF3E5F44),
+                                          width: 2,
+                                        )
+                                      : BorderSide.none,
+                                ),
+                                child: ListTile(
+                                  leading: SizedBox(
+                                    width: 48,
+                                    height: 48,
+                                    child: Stack(
+                                      children: [
+                                        // Profilová fotka
+                                        CircleAvatar(
+                                          radius: 24,
+                                          backgroundColor: Colors.grey[200],
+                                          backgroundImage: (entry.profileImageUrl != null &&
+                                                  entry.profileImageUrl!.isNotEmpty &&
+                                                  entry.profileImageUrl!.startsWith('http'))
+                                              ? NetworkImage(entry.profileImageUrl!)
+                                              : null,
+                                          child: (entry.profileImageUrl == null ||
+                                                  entry.profileImageUrl!.isEmpty ||
+                                                  !entry.profileImageUrl!.startsWith('http'))
+                                              ? const Icon(
+                                                  Icons.person,
+                                                  color: Color(0xFF3E5F44),
+                                                )
+                                              : null,
                                         ),
-                                        child: Center(
-                                          child: Text(
-                                            '$position',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
+                                        // Odznak s pozicí
+                                        Positioned(
+                                          right: 0,
+                                          bottom: 0,
+                                          child: Container(
+                                            width: 22,
+                                            height: 22,
+                                            decoration: BoxDecoration(
+                                              color: _getPositionColor(position),
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Colors.white,
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                '$position',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
+                                      ],
+                                    ),
+                                  ),
+                                  title: Text(
+                                    entry.nickname ?? entry.email.split('@')[0],
+                                    style: TextStyle(
+                                      fontWeight: entry.isCurrentUser
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: entry.isCurrentUser
+                                          ? const Color(0xFF3E5F44)
+                                          : null,
+                                    ),
+                                  ),
+                                  trailing: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF3E5F44).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${entry.balance.toStringAsFixed(0)}!',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF3E5F44),
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ),
-                              title: Text(
-                                entry.nickname ?? entry.email.split('@')[0],
-                                style: TextStyle(
-                                  fontWeight: entry.isCurrentUser
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  color: entry.isCurrentUser
-                                      ? const Color(0xFF3E5F44)
-                                      : null,
-                                ),
-                              ),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF3E5F44).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '${entry.balance.toStringAsFixed(0)}!',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF3E5F44),
                                   ),
+                                  onTap: entry.isCurrentUser ? null : () {
+                                    setState(() {
+                                      _expandedEntryEmail = isExpanded ? null : entry.email;
+                                    });
+                                  },
                                 ),
                               ),
-                            ),
+                              // Rozbalená karta s možnostmi
+                              if (isExpanded && !entry.isCurrentUser)
+                                Card(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: const BorderSide(
+                                      color: Color(0xFF3E5F44),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: _actionMode == null
+                                      ? Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                            children: [
+                                              Expanded(
+                                                child: InkWell(
+                                                  onTap: () {
+                                                    setState(() {
+                                                      _actionMode = 'send';
+                                                      if (!_amountControllers.containsKey(entry.email)) {
+                                                        _amountControllers[entry.email] = TextEditingController();
+                                                      }
+                                                    });
+                                                  },
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                                    decoration: BoxDecoration(
+                                                      border: Border(
+                                                        right: BorderSide(
+                                                          color: Colors.grey[300]!,
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    child: const Center(
+                                                      child: Text(
+                                                        'Poslat finance',
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: Color(0xFF3E5F44),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: InkWell(
+                                                  onTap: () {
+                                                    setState(() {
+                                                      _actionMode = 'delete';
+                                                    });
+                                                  },
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                                    child: const Center(
+                                                      child: Text(
+                                                        'Smazat kamaráda',
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : _actionMode == 'delete'
+                                          ? Padding(
+                                              padding: const EdgeInsets.all(16),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                                children: [
+                                                  const Text(
+                                                    'Opravdu chcete smazat tohoto kamaráda?',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                                    children: [
+                                                      Expanded(
+                                                        child: OutlinedButton(
+                                                          onPressed: () {
+                                                            setState(() {
+                                                              _actionMode = null;
+                                                            });
+                                                          },
+                                                          style: OutlinedButton.styleFrom(
+                                                            side: const BorderSide(color: Colors.grey),
+                                                          ),
+                                                          child: const Text('Zrušit'),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Expanded(
+                                                        child: ElevatedButton(
+                                                          onPressed: () {
+                                                            setState(() {
+                                                              _expandedEntryEmail = null;
+                                                              _actionMode = null;
+                                                            });
+                                                            _removeFriend(entry.email);
+                                                          },
+                                                          style: ElevatedButton.styleFrom(
+                                                            backgroundColor: Colors.red,
+                                                            foregroundColor: Colors.white,
+                                                          ),
+                                                          child: const Text('Smazat'),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          : Padding(
+                                              padding: const EdgeInsets.all(16),
+                                              child: FutureBuilder<double>(
+                                                future: _sessionManager.getBalance(),
+                                                builder: (context, snapshot) {
+                                                  final balance = snapshot.data ?? 0.0;
+                                                  final controller = _amountControllers[entry.email] ?? TextEditingController();
+                                                  
+                                                  return Column(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                                    children: [
+                                                      const Text(
+                                                        'Poslat finance',
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Color(0xFF3E5F44),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 12),
+                                                      TextField(
+                                                        controller: controller,
+                                                        keyboardType: TextInputType.number,
+                                                        decoration: InputDecoration(
+                                                          labelText: 'Částka',
+                                                          hintText: 'Zadejte částku',
+                                                          border: const OutlineInputBorder(),
+                                                          suffixText: '!',
+                                                          errorText: (() {
+                                                            final amount = double.tryParse(controller.text);
+                                                            if (controller.text.isNotEmpty) {
+                                                              if (amount == null || amount <= 0) {
+                                                                return 'Zadejte platnou částku';
+                                                              }
+                                                              if (amount > balance) {
+                                                                return 'Dostupné: ${balance.toStringAsFixed(0)}!';
+                                                              }
+                                                            }
+                                                            return null;
+                                                          })(),
+                                                        ),
+                                                        onChanged: (value) {
+                                                          setState(() {
+                                                            // Trigger rebuild pro zobrazení chyby
+                                                          });
+                                                        },
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Text(
+                                                        'Dostupné: ${balance.toStringAsFixed(0)}!',
+                                                        style: TextStyle(
+                                                          color: Colors.grey[600],
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 16),
+                                                      Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                                        children: [
+                                                          Expanded(
+                                                            child: OutlinedButton(
+                                                              onPressed: () {
+                                                                setState(() {
+                                                                  _actionMode = null;
+                                                                });
+                                                              },
+                                                              style: OutlinedButton.styleFrom(
+                                                                side: const BorderSide(color: Colors.grey),
+                                                              ),
+                                                              child: const Text('Zrušit'),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(width: 12),
+                                                          Expanded(
+                                                            child: ElevatedButton(
+                                                              onPressed: () async {
+                                                                final amount = double.tryParse(controller.text);
+                                                                
+                                                                // Validace
+                                                                if (amount == null || amount <= 0) {
+                                                                  return;
+                                                                }
+                                                                
+                                                                if (amount > balance) {
+                                                                  return; // Chyba se zobrazí v TextField
+                                                                }
+
+                                                                final userEmail = _sessionManager.userEmail;
+                                                                if (userEmail == null) return;
+
+                                                                final success = await _sessionManager.transferBalance(
+                                                                  userEmail,
+                                                                  entry.email,
+                                                                  amount,
+                                                                );
+
+                                                                if (mounted) {
+                                                                  setState(() {
+                                                                    _expandedEntryEmail = null;
+                                                                    _actionMode = null;
+                                                                    controller.clear();
+                                                                  });
+                                                                  if (success) {
+                                                                    _loadLeaderboard();
+                                                                  }
+                                                                }
+                                                              },
+                                                              style: ElevatedButton.styleFrom(
+                                                                backgroundColor: const Color(0xFF3E5F44),
+                                                                foregroundColor: Colors.white,
+                                                              ),
+                                                              child: const Text('Poslat'),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                ),
+                            ],
                           );
                         },
                       ),
@@ -314,6 +590,42 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         return const Color(0xFF3E5F44);
     }
   }
+
+
+  Future<void> _removeFriend(String friendEmail) async {
+    final userEmail = _sessionManager.userEmail;
+    if (userEmail == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Smazat kamaráda?'),
+        content: const Text('Opravdu chcete tohoto kamaráda smazat?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Zrušit'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Smazat'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _firestoreService.removeFriend(userEmail, friendEmail);
+      if (mounted) {
+        _loadLeaderboard();
+      }
+    }
+  }
+
 }
 
 class LeaderboardEntry {
