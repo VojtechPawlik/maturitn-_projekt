@@ -368,6 +368,58 @@ class FirestoreService {
     }
   }
 
+  // Smazat sázku
+  Future<bool> deleteBet(String betId) async {
+    try {
+      await _firestore.collection('bets').doc(betId).delete();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Smazat staré sázky (starší než 30 dní)
+  Future<int> deleteOldBets() async {
+    try {
+      final now = DateTime.now();
+      final cutoffDate = now.subtract(const Duration(days: 30));
+      
+      // Načíst všechny sázky (placedAt je uloženo jako ISO string, takže musíme filtrovat lokálně)
+      final snapshot = await _firestore.collection('bets').get();
+      
+      // Filtrovat staré sázky a smazat je
+      final batch = _firestore.batch();
+      int deletedCount = 0;
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final placedAtStr = data['placedAt'];
+        
+        if (placedAtStr != null) {
+          try {
+            final placedAt = DateTime.parse(placedAtStr);
+            if (placedAt.isBefore(cutoffDate)) {
+              batch.delete(doc.reference);
+              deletedCount++;
+            }
+          } catch (e) {
+            // Pokud se nepodařilo parsovat datum, přeskočit
+            continue;
+          }
+        }
+      }
+      
+      if (deletedCount > 0) {
+        await batch.commit();
+      }
+      
+      return deletedCount;
+    } catch (e) {
+      // Chyba při mazání starých sázek - ignorovat
+      return 0;
+    }
+  }
+
   // Načíst sázky uživatele
   Future<List<Bet>> getUserBets(String userEmail) async {
     try {

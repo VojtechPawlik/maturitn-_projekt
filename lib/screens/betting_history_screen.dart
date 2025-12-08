@@ -19,6 +19,8 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
   String? _errorMessage;
   Map<int, Match> _matchCache = {}; // Cache pro zápasy
   final Set<String> _settledBets = {}; // Sázky, které už byly zúčtovány
+  String? _expandedBetId; // ID sázky, jejíž karta je rozbalená
+  String? _actionMode; // 'delete' nebo 'cancel' - režim akce v rozbalené kartě
 
   @override
   void initState() {
@@ -41,6 +43,9 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
         });
         return;
       }
+
+      // Automaticky smazat staré sázky (starší než 30 dní) před načtením
+      await _firestoreService.deleteOldBets();
 
       final bets = await _firestoreService.getUserBets(userEmail);
       
@@ -218,6 +223,38 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
     }
   }
 
+
+  // Smazat sázku
+  Future<void> _deleteBet(Bet bet, bool shouldRefund) async {
+    try {
+      // Pokud je sázka ještě nevyhodnocená, vrátit peníze
+      if (shouldRefund) {
+        final refunded = await _sessionManager.addBalance(bet.amount);
+        if (!refunded) {
+          return;
+        }
+      }
+
+      final success = await _firestoreService.deleteBet(bet.id);
+      
+      if (success) {
+        // Odstranit sázku ze seznamu a zavřít rozbalenou kartu
+        setState(() {
+          _bets.removeWhere((b) => b.id == bet.id);
+          _expandedBetId = null;
+          _actionMode = null;
+        });
+      } else {
+        // Pokud se smazání nepodařilo, ale peníze už byly vráceny, vrátit je zpět
+        if (shouldRefund) {
+          await _sessionManager.subtractBalance(bet.amount);
+        }
+      }
+    } catch (e) {
+      // Chyba při mazání sázky - ignorovat
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -279,21 +316,34 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
                             _settleBet(bet, isWon);
                           }
                           
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color: borderColor ?? Colors.grey[300]!,
-                                width: 2,
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
+                          final isExpanded = _expandedBetId == bet.id;
+                          final canCancel = isWon == null; // Můžeme zrušit pouze nevyhodnocené sázky
+
+                          return Column(
+                            children: [
+                              Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: borderColor ?? Colors.grey[300]!,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _expandedBetId = isExpanded ? null : bet.id;
+                                      _actionMode = null;
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
                                   // Hlavička s týmami
                                   if (match != null) ...[
                                     Row(
@@ -430,6 +480,151 @@ class _BettingHistoryScreenState extends State<BettingHistoryScreen> {
                                 ],
                               ),
                             ),
+                          ),
+                          ),
+                          // Rozbalená karta s možnostmi
+                          if (isExpanded)
+                            Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: borderColor ?? Colors.grey[300]!,
+                                  width: 2,
+                                ),
+                              ),
+                              child: _actionMode == null
+                                  ? Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                        children: [
+                                          Expanded(
+                                            child: InkWell(
+                                              onTap: () {
+                                                setState(() {
+                                                  _actionMode = canCancel ? 'cancel' : 'delete';
+                                                });
+                                              },
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                                child: Center(
+                                                  child: Text(
+                                                    canCancel ? 'Zrušit sázku' : 'Smazat sázku',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: canCancel ? const Color(0xFF3E5F44) : Colors.red,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (canCancel) ...[
+                                            Text(
+                                              'Při zrušení sázky vám budou vráceny peníze: ${bet.amount.toStringAsFixed(2)}!',
+                                              style: const TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            const Text(
+                                              'Opravdu chcete zrušit sázku?',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ] else ...[
+                                            const Text(
+                                              'Smazat sázku',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Typ sázky: ${_getBetTypeLabel(bet.betType, match)}',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[700],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Částka: ${bet.amount.toStringAsFixed(2)}!',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[700],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            const Text(
+                                              'Opravdu chcete smazat tuto sázku? (Peníze nebudou vráceny, protože sázka již byla vyhodnocena.)',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                            children: [
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _actionMode = null;
+                                                    });
+                                                  },
+                                                  style: OutlinedButton.styleFrom(
+                                                    side: const BorderSide(color: Colors.grey),
+                                                  ),
+                                                  child: const Text('Zrušit'),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _expandedBetId = null;
+                                                      _actionMode = null;
+                                                    });
+                                                    _deleteBet(bet, canCancel);
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: canCancel ? const Color(0xFF3E5F44) : Colors.red,
+                                                    foregroundColor: Colors.white,
+                                                  ),
+                                                  child: Text(canCancel ? 'Zrušit sázku' : 'Smazat'),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                            ),
+                          ],
                           );
                         },
                       ),
