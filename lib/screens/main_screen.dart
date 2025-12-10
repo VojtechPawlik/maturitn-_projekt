@@ -589,9 +589,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin, 
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const ProfileScreen()),
     ).then((result) {
+      // Vždy aktualizovat balance, protože se může změnit i bez uložení změn (např. denní bonus)
+      _loadBalance();
       if (result == true) {
         _checkAuthStatus();
-        _loadBalance();
         setState(() {});
       }
     });
