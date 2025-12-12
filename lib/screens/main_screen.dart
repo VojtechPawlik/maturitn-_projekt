@@ -81,6 +81,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin, 
     _loadLeagues();
     _initializeApp().then((_) {
       _loadBalance();
+      // Aktualizovat výsledky zápasů při startu aplikace
+      _updateMatchResults();
     });
     _loadAllMatchesForCalendar();
     _loadTeams();
@@ -94,9 +96,27 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin, 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Aktualizovat zůstatek když se aplikace vrátí do popředí
+    // Aktualizovat zůstatek a výsledky zápasů když se aplikace vrátí do popředí
     if (state == AppLifecycleState.resumed && _isLoggedIn) {
       _loadBalance();
+      _updateMatchResults();
+    }
+  }
+
+  // Aktualizovat výsledky zápasů pro poslední 3 dny a dnešek
+  Future<void> _updateMatchResults() async {
+    try {
+      final now = DateTime.now();
+      final dates = List.generate(4, (index) => now.subtract(Duration(days: index)));
+      
+      for (var date in dates) {
+        await _firestoreService.updateFixturesResults(date);
+      }
+      
+      // Znovu načíst zápasy pro kalendář, aby se zobrazily aktualizované výsledky
+      _loadAllMatchesForCalendar();
+    } catch (e) {
+      // Chyba při aktualizaci výsledků zápasů - ignorovat
     }
   }
   
@@ -475,7 +495,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin, 
       );
     }
 
-    _autoUpdateService.startAutoUpdate(intervalMinutes: 360);
+    _autoUpdateService.startAutoUpdate(intervalMinutes: 1440); // Aktualizace jednou denně (24 hodin)
   }
 
 

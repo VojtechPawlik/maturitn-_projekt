@@ -295,8 +295,8 @@ class SessionManager {
       }
     }
     
-    // Udělit odměnu 20!
-    await addBalance(20.0);
+    // Udělit odměnu 50!
+    await addBalance(50.0);
     
     // Uložit datum odměny
     await prefs.setString(lastRewardDateKey, today.toIso8601String());

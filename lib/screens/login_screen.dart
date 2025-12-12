@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../services/localization_service.dart';
@@ -127,34 +126,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _signInWithApple() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final result = await _authService.signInWithApple(rememberMe: _rememberMe);
-      
-      if (result != null && mounted) {
-        // Nastavit session po úspěšném přihlášení
-        await SessionManager().loginUser(
-          email: result.user?.email ?? 'apple.user@icloud.com',
-          nickname: result.user?.displayName ?? 'Apple uživatel',
-          rememberMe: _rememberMe,
-        );
-        
-        Navigator.of(context).pop(true);
-        _showSuccessMessage('Úspěšně přihlášen přes Apple!');
-      }
-    } catch (e) {
-      if (mounted) {
-        _showErrorMessage(e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   Future<void> _resetPassword() async {
     final String email = _emailController.text.trim();
     
@@ -248,17 +219,18 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              // Logo
-              Center(
-                child: Image.asset(
-                  'assets/images/logo_a_text.png',
-                  width: 350,
-                  height: 180,
-                  fit: BoxFit.contain,
+              const SizedBox(height: 32),
+              // Nadpis
+              const Text(
+                'Přihlášení',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF3E5F44),
                 ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-
+              const SizedBox(height: 48),
               // Email pole
               TextFormField(
                 controller: _emailController,
@@ -364,20 +336,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: const Icon(Icons.account_circle, color: Colors.red),
                 label: const Text('Pokračovat s Google'),
               ),
-              const SizedBox(height: 8),
-
-              // Přihlášení přes Apple (pouze na iOS/macOS)
-              if (Platform.isIOS || Platform.isMacOS)
-                OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _signInWithApple,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                    foregroundColor: Colors.black,
-                  ),
-                  icon: const Icon(Icons.apple, color: Colors.black),
-                  label: const Text('Pokračovat s Apple', style: TextStyle(color: Colors.black)),
-                ),
-              
               const SizedBox(height: 32),
 
               // Registrace

@@ -78,7 +78,20 @@ class AutoUpdateService {
       }
     }
 
-    // 2) Automaticky aktualizovat novinky z externího API
+    // 2) Automaticky aktualizovat výsledky zápasů pro poslední 3 dny a dnešek
+    // (pro případ, že některé zápasy ještě nejsou ukončené)
+    try {
+      final now = DateTime.now();
+      final dates = List.generate(4, (index) => now.subtract(Duration(days: index)));
+      
+      for (var date in dates) {
+        await _firestoreService.updateFixturesResults(date);
+      }
+    } catch (e) {
+      // Chyba při aktualizaci výsledků zápasů – ignorovat
+    }
+
+    // 3) Automaticky aktualizovat novinky z externího API
     try {
       await _firestoreService.fetchAndSaveNewsFromApi();
     } catch (e) {

@@ -262,7 +262,7 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                 ),
                               ],
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                       const SizedBox(height: 16),

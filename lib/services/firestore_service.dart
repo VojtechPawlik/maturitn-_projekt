@@ -8,9 +8,17 @@ class FirestoreService {
   final ApiFootballService _apiFootballService = ApiFootballService();
   final NewsApiService _newsApiService = NewsApiService();
 
-  // ---------------------------
-  // NOVINKY (NEWS)
-  // ---------------------------
+  // Určit aktuální sezónu (fotbalová sezóna obvykle začíná v srpnu)
+  static int getCurrentSeason() {
+    final now = DateTime.now();
+    // Pokud je srpen nebo později, sezóna začíná v tomto roce
+    // Jinak sezóna začala v předchozím roce
+    if (now.month >= 8) {
+      return now.year;
+    } else {
+      return now.year - 1;
+    }
+  }
 
   /// Načíst novinky z kolekce `news` (jednorázově)
   Future<List<News>> getNews({int limit = 20}) async {
@@ -654,6 +662,28 @@ class FirestoreService {
     });
   }
 
+  // Automatická aktualizace výsledků zápasů pro dané datum
+  Future<void> updateFixturesResults(DateTime date) async {
+    try {
+      await _apiFootballService.initializeApiKey();
+      
+      // Načíst zápasy z API pro dané datum
+      final allMatches = await _apiFootballService.getFixtures(date: date);
+      
+      // Filtrovat pouze zápasy z povolených lig
+      final allowedMatches = allMatches
+          .where((match) => _allowedLeagueIds.contains(match.leagueId))
+          .toList();
+      
+      // Uložit do Firestore (přepíše staré zápasy s novými výsledky)
+      if (allowedMatches.isNotEmpty) {
+        await saveFixtures(date: date, matches: allowedMatches);
+      }
+    } catch (e) {
+      // Chyba při aktualizaci výsledků zápasů - ignorovat
+    }
+  }
+
   // Automatická aktualizace tabulek a zápasů
   Future<void> updateLeagueData({
     required String leagueId,
@@ -675,6 +705,60 @@ class FirestoreService {
       await _deleteOldFixtures();
     } catch (e) {
       // Chyba při automatické aktualizaci
+    }
+  }
+
+  // Automatická aktualizace tabulek všech top 5 lig
+  Future<void> updateAllStandings() async {
+    try {
+      final currentSeason = getCurrentSeason();
+      
+      // Top 5 lig: Premier League, La Liga, Serie A, Bundesliga, Ligue 1
+      final leagues = [
+        {'id': 'premier_league', 'apiId': 39},
+        {'id': 'la_liga', 'apiId': 140},
+        {'id': 'serie_a', 'apiId': 135},
+        {'id': 'bundesliga', 'apiId': 78},
+        {'id': 'ligue_1', 'apiId': 61},
+      ];
+      
+      for (var league in leagues) {
+        try {
+          final leagueId = league['id'] as String;
+          final apiLeagueId = league['apiId'] as int;
+          
+          // Načíst standings z API pro aktuální sezónu
+          final standings = await _apiFootballService.getStandings(
+            leagueId: apiLeagueId,
+            season: currentSeason,
+          );
+
+          if (standings.isNotEmpty) {
+            // Uložit do Firestore s aktuální sezónou
+            final currentDocId = '${leagueId}_$currentSeason';
+            await _firestore.collection('standings').doc(currentDocId).set({
+              'leagueId': leagueId,
+              'season': currentSeason,
+              'updated': FieldValue.serverTimestamp(),
+              'teams': standings.map((team) => team.toMap()).toList(),
+            });
+            
+            // Smazat staré standings z roku 2023 (pokud existují)
+            final oldDocId = '${leagueId}_2023';
+            final oldDoc = await _firestore.collection('standings').doc(oldDocId).get();
+            if (oldDoc.exists) {
+              await _firestore.collection('standings').doc(oldDocId).delete();
+            }
+            
+            // Automaticky načíst a uložit týmy z této ligy
+            await _saveTeamsFromStandings(standings, leagueId, apiLeagueId, currentSeason);
+          }
+        } catch (e) {
+          // Chyba při aktualizaci jedné ligy - pokračovat s dalšími
+        }
+      }
+    } catch (e) {
+      // Chyba při automatické aktualizaci tabulek
     }
   }
 
@@ -1205,8 +1289,8 @@ class FirestoreService {
         'premier league',
         'la_liga',
         'la liga',
-        'serie_a',
         'serie a',
+        'serie_a',
         'bundesliga',
         'ligue_1',
         'ligue 1',

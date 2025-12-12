@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/session_manager.dart';
@@ -642,7 +641,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
-                            '+ 20! denně',
+                            '+ 50! denně',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
