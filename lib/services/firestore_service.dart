@@ -113,26 +113,48 @@ class FirestoreService {
   // Načíst všechny ligy (bez Champions League a Europa League)
   Future<List<League>> getLeagues() async {
     try {
-      final snapshot = await _firestore.collection('leagues').get();
-      
-      return snapshot.docs
-          .where((doc) {
-            final id = doc.id.toLowerCase();
-            final name = (doc['name'] ?? '').toString().toLowerCase();
-            // Vyloučit Champions League a Europa League
-            return !id.contains('champions') && 
-                   !id.contains('europa') &&
-                   !name.contains('champions league') &&
-                   !name.contains('europa league');
-          })
-          .map((doc) {
-            return League(
-              id: doc.id,
-              name: doc['name'] ?? '',
-              country: doc['country'] ?? '',
-              logo: doc['logo'] ?? '',
-            );
-          }).toList();
+      // Vynutit načtení ze serveru (nejen z lokální cache)
+      final snapshot = await _firestore
+          .collection('leagues')
+          .get(const GetOptions(source: Source.serverAndCache));
+
+      // 1) Pokud jsou v kolekci přímo ligy, použij je
+      final leaguesFromCollection = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return League(
+          id: doc.id,
+          name: (data['name'] ?? '').toString(),
+          country: (data['country'] ?? '').toString(),
+          logo: (data['logo'] ?? '').toString(),
+        );
+      }).toList();
+
+      if (leaguesFromCollection.isNotEmpty) {
+        return leaguesFromCollection;
+      }
+
+      // 2) Fallback – pokud kolekce `leagues` neexistuje nebo je prázdná,
+      //    zkusit vygenerovat ligy z kolekce `teams`
+      final teams = await getTeams();
+      if (teams.isEmpty) {
+        return [];
+      }
+
+      final Map<String, League> leaguesFromTeams = {};
+
+      for (var team in teams) {
+        final leagueId = team.league.toLowerCase().replaceAll(' ', '_');
+        if (!leaguesFromTeams.containsKey(leagueId)) {
+          leaguesFromTeams[leagueId] = League(
+            id: leagueId,
+            name: team.league,
+            country: team.country,
+            logo: team.logoUrl,
+          );
+        }
+      }
+
+      return leaguesFromTeams.values.toList();
     } catch (e) {
       return [];
     }
@@ -1271,45 +1293,15 @@ class FirestoreService {
     }
   }
 
-  // Načíst týmy z Firebase (pouze z top 5 evropských lig)
+  // Načíst týmy z Firebase
   Future<List<Team>> getTeams() async {
     try {
-      // Blacklist - nejprve vyloučit Champions League a Europa League
-      final excludedPatterns = [
-        'champions',
-        'europa',
-        'uefa champions',
-        'uefa europa',
-        'european',
-      ];
+      // Vynutit načtení ze serveru (nejen z lokální cache)
+      final snapshot = await _firestore
+          .collection('teams')
+          .get(const GetOptions(source: Source.serverAndCache));
       
-      // Whitelist povolených lig - ID lig i názvy (s mezerami i podtržítky)
-      final allowedLeaguePatterns = [
-        'premier_league',
-        'premier league',
-        'la_liga',
-        'la liga',
-        'serie a',
-        'serie_a',
-        'bundesliga',
-        'ligue_1',
-        'ligue 1',
-      ];
-      
-      final snapshot = await _firestore.collection('teams').get();
       return snapshot.docs
-          .where((doc) {
-            final data = doc.data();
-            final league = (data['league'] ?? '').toString().toLowerCase().trim();
-            
-            // Nejdříve vyloučit Champions League a Europa League
-            if (excludedPatterns.any((excluded) => league.contains(excluded))) {
-              return false;
-            }
-            
-            // Pak povolit pouze týmy z top 5 evropských lig
-            return allowedLeaguePatterns.any((pattern) => league.contains(pattern));
-          })
           .map((doc) {
             final data = doc.data();
             // Vytvořit mapu všech fields kromě základních
