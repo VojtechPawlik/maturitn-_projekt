@@ -4,7 +4,6 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class ApiFootballService {
   static const String _baseUrl = 'https://v3.football.api-sports.io';
-  static const String _rapidApiBaseUrl = 'https://api-football-v1.p.rapidapi.com/v3';
   String? _apiKey;
 
   // Načíst API klíč z Remote Config
@@ -524,117 +523,6 @@ class ApiFootballService {
     }
   }
 
-  // Načíst profil hráče
-  Future<Map<String, dynamic>?> getPlayerProfile({
-    required int playerId,
-  }) async {
-    if (_apiKey == null) {
-      await initializeApiKey();
-    }
-
-    try {
-      final url = '$_rapidApiBaseUrl/players/profiles?player=$playerId';
-      
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'x-rapidapi-key': _apiKey ?? '',
-          'x-rapidapi-host': 'api-football-v1.p.rapidapi.com',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        // Kontrola chyb z API
-        if (data['errors'] != null && data['errors'].isNotEmpty) {
-          final errorMsg = data['errors'].values.first.toString();
-          throw Exception('API chyba: $errorMsg');
-        }
-
-        // Kontrola struktury odpovědi
-        if (data['response'] == null || data['response'].isEmpty) {
-          return null;
-        }
-
-        final playerData = data['response'][0];
-        
-        // Extrahovat relevantní informace o profilu hráče
-        final player = playerData['player'] ?? {};
-        final statistics = playerData['statistics'] ?? [];
-        
-        return {
-          'id': player['id'] ?? playerId,
-          'name': player['name'] ?? '',
-          'firstname': player['firstname'] ?? '',
-          'lastname': player['lastname'] ?? '',
-          'age': player['age'] ?? 0,
-          'birth': {
-            'date': player['birth']?['date'] ?? '',
-            'place': player['birth']?['place'] ?? '',
-            'country': player['birth']?['country'] ?? '',
-          },
-          'nationality': player['nationality'] ?? '',
-          'height': player['height'] ?? '',
-          'weight': player['weight'] ?? '',
-          'injured': player['injured'] ?? false,
-          'photo': player['photo'] ?? '',
-          'statistics': statistics.map((stat) {
-            final team = stat['team'] ?? {};
-            final league = stat['league'] ?? {};
-            final games = stat['games'] ?? {};
-            final goals = stat['goals'] ?? {};
-            final cards = stat['cards'] ?? {};
-            
-            return {
-              'team': {
-                'id': team['id'] ?? 0,
-                'name': team['name'] ?? '',
-                'logo': team['logo'] ?? '',
-              },
-              'league': {
-                'id': league['id'] ?? 0,
-                'name': league['name'] ?? '',
-                'country': league['country'] ?? '',
-                'logo': league['logo'] ?? '',
-              },
-              'games': {
-                'appearences': games['appearences'] ?? 0,
-                'lineups': games['lineups'] ?? 0,
-                'minutes': games['minutes'] ?? 0,
-                'position': games['position'] ?? '',
-                'rating': games['rating'] ?? '',
-                'captain': games['captain'] ?? false,
-              },
-              'goals': {
-                'total': goals['total'] ?? 0,
-                'conceded': goals['conceded'] ?? 0,
-                'assists': goals['assists'] ?? 0,
-                'saves': goals['saves'] ?? 0,
-              },
-              'cards': {
-                'yellow': cards['yellow'] ?? 0,
-                'red': cards['red'] ?? 0,
-              },
-              'season': stat['season'] ?? '',
-            };
-          }).toList(),
-        };
-      } else if (response.statusCode == 401) {
-        throw Exception('Neplatný API klíč. Zkontrolujte Firebase Remote Config.');
-      } else if (response.statusCode == 403) {
-        throw Exception('API klíč nemá oprávnění. Zkontrolujte svůj plán.');
-      } else if (response.statusCode == 429) {
-        throw Exception('Překročen limit API požadavků. Zkuste to později.');
-      } else {
-        final errorData = json.decode(response.body);
-        final errorMsg = errorData['errors']?[0]?['message'] ?? 'Neznámá chyba';
-        throw Exception('API chyba (${response.statusCode}): $errorMsg');
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
 }
 
 class StandingTeam {

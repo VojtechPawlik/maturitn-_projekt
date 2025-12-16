@@ -18,7 +18,6 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
   final FirestoreService _firestoreService = FirestoreService();
   final ApiFootballService _apiFootballService = ApiFootballService();
   List<Player> _players = [];
-  Map<int, Map<String, dynamic>> _playerProfiles = {};
   bool _isLoadingPlayers = false;
   String? _errorMessage;
   late TabController _tabController;
@@ -90,14 +89,6 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
       
       setState(() {
         _players = players;
-      });
-      
-      // Načíst profily pro všechny hráče (pokud jsou nějací)
-      if (_players.isNotEmpty) {
-        await _loadPlayerProfiles();
-      }
-      
-      setState(() {
         _isLoadingPlayers = false;
       });
     } catch (e) {
@@ -107,32 +98,6 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
         _errorMessage = 'Neočekávaná chyba: ${e.toString()}';
       });
     }
-  }
-
-  Future<void> _loadPlayerProfiles() async {
-    final profiles = <int, Map<String, dynamic>>{};
-    
-    for (var player in _players) {
-      if (player.id > 0) {
-        try {
-          final profile = await _firestoreService.getPlayerProfile(
-            teamId: widget.team.id,
-            playerId: player.id,
-            season: widget.team.season,
-          );
-          
-          if (profile != null) {
-            profiles[player.id] = profile;
-          }
-        } catch (e) {
-          // Chyba při načítání profilu - pokračovat
-        }
-      }
-    }
-    
-    setState(() {
-      _playerProfiles = profiles;
-    });
   }
 
   @override
@@ -528,46 +493,10 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
   }
 
   Widget _buildPlayerCard(Player player) {
-    final profile = _playerProfiles[player.id];
-    
     // Rozdělit jméno na jméno a příjmení
     final nameParts = player.name.split(' ');
     final firstName = nameParts.isNotEmpty ? nameParts[0] : '';
     final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
-    
-    // Získat statistiky z profilu
-    int goals = 0;
-    int assists = 0;
-    int yellowCards = 0;
-    int redCards = 0;
-    
-    if (profile != null) {
-      // Zkusit načíst statistiky z nové struktury (přímo v dokumentu hráče)
-      var statistics = profile['statistics'];
-      
-      // Pokud není v nové struktuře, zkusit ze staré
-      if (statistics == null && profile.containsKey('statistics')) {
-        statistics = profile['statistics'];
-      }
-      
-      if (statistics != null && statistics is List && statistics.isNotEmpty) {
-        final latestStats = statistics[0];
-        if (latestStats is Map) {
-          final goalsData = latestStats['goals'];
-          final cardsData = latestStats['cards'];
-          
-          if (goalsData is Map) {
-            goals = _parseInt(goalsData['total']) ?? 0;
-            assists = _parseInt(goalsData['assists']) ?? 0;
-          }
-          
-          if (cardsData is Map) {
-            yellowCards = _parseInt(cardsData['yellow']) ?? 0;
-            redCards = _parseInt(cardsData['red']) ?? 0;
-          }
-        }
-      }
-    }
     
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -649,7 +578,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
                 ],
               ),
             ),
-            // Číslo dresu a statistiky
+            // Číslo dresu
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -699,15 +628,6 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
                       ],
                     ),
                   ),
-                // Statistiky
-                if (goals > 0)
-                  _buildStatChip('⚽', goals.toString()),
-                if (assists > 0)
-                  _buildStatChip('🎯', assists.toString()),
-                if (yellowCards > 0)
-                  _buildStatChip('🟨', yellowCards.toString()),
-                if (redCards > 0)
-                  _buildStatChip('🟥', redCards.toString()),
               ],
             ),
           ],
@@ -716,36 +636,4 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildStatChip(String icon, String value) {
-    return Container(
-      margin: const EdgeInsets.only(left: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF3E5F44).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(icon, style: const TextStyle(fontSize: 14)),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF3E5F44),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  int? _parseInt(dynamic value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value);
-    return null;
-  }
 }

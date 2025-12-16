@@ -106,7 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSettingsTile(
             icon: Icons.feedback,
             title: 'Poslat zpětnou vazbu',
-            subtitle: 'Po přihlášení mi můžeš napsat e‑mail s názorem na aplikaci',
+            subtitle: 'Chyba nebo nápad? Neváhejte mi napsat',
             onTap: _handleFeedbackTap,
           ),
           const SizedBox(height: 24),

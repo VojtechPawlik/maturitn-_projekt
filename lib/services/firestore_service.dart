@@ -1095,31 +1095,6 @@ class FirestoreService {
     }
   }
 
-  // Načíst a uložit profily hráčů pro všechny týmy
-  Future<void> fetchAndSavePlayerProfilesForAllTeams() async {
-    try {
-      // Načíst všechny týmy z Firestore
-      final teams = await getTeams();
-      final currentSeason = 2023;
-      
-      for (var team in teams) {
-        try {
-          await fetchAndSavePlayerProfiles(
-            teamId: team.id,
-            season: team.season > 0 ? team.season : currentSeason,
-          );
-          
-          // Počkat mezi týmy, aby se nepřekročil API limit
-          await Future.delayed(const Duration(milliseconds: 500));
-        } catch (e) {
-          // Chyba při načítání profilů - pokračovat s dalším týmem
-        }
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
-
   // Zajistit, že všechny týmy mají apiTeamId (veřejná metoda pro použití z UI)
   Future<void> ensureAllTeamsHaveApiId() async {
     try {
@@ -1373,27 +1348,6 @@ class FirestoreService {
         throw Exception('Žádní hráči nebyli nalezeni pro tento tým');
       }
 
-      // Pokud jsou požadovány profily, načíst je pro každého hráče
-      if (includeProfiles) {
-        for (var player in players) {
-          final playerId = player['id'] ?? 0;
-          if (playerId > 0) {
-            try {
-              final profile = await _apiFootballService.getPlayerProfile(
-                playerId: playerId,
-              );
-              if (profile != null) {
-                player['profile'] = profile;
-              }
-              // Počkat mezi požadavky, aby se nepřekročil API limit
-              await Future.delayed(const Duration(milliseconds: 300));
-            } catch (e) {
-              // Chyba při načítání profilu - pokračovat s dalším hráčem
-            }
-          }
-        }
-      }
-
       // Uložit do nové kolekce players
       final batch = _firestore.batch();
       
@@ -1441,112 +1395,8 @@ class FirestoreService {
     }
   }
 
-  // Načíst a uložit profily hráčů pro tým
-  Future<void> fetchAndSavePlayerProfiles({
-    required String teamId,
-    required int season,
-  }) async {
-    try {
-      // Načíst hráče z Firestore
-      final players = await getPlayers(
-        teamId: teamId,
-        season: season,
-      );
-
-      if (players.isEmpty) {
-        throw Exception('Žádní hráči nebyli nalezeni pro tento tým');
-      }
-
-      // Pro každého hráče načíst profil
-      for (var player in players) {
-        if (player.id > 0) {
-          try {
-            final profile = await _apiFootballService.getPlayerProfile(
-              playerId: player.id,
-            );
-            
-            if (profile != null) {
-              // Uložit profil do nové struktury (do dokumentu hráče)
-              final playerDocId = '${teamId}_${player.id}_$season';
-              await _firestore
-                  .collection('players')
-                  .doc(playerDocId)
-                  .update({
-                'statistics': profile['statistics'] ?? [],
-                'height': profile['height'] ?? '',
-                'weight': profile['weight'] ?? '',
-                'birth': profile['birth'] ?? {},
-                'updated': FieldValue.serverTimestamp(),
-              });
-              
-              // Také uložit do staré struktury pro kompatibilitu
-              await _firestore
-                  .collection('teams')
-                  .doc(teamId)
-                  .collection('players')
-                  .doc('squad_$season')
-                  .collection('profiles')
-                  .doc('player_${player.id}')
-                  .set({
-                'playerId': player.id,
-                'updated': FieldValue.serverTimestamp(),
-                ...profile,
-              }, SetOptions(merge: true));
-            }
-            
-            // Počkat mezi požadavky, aby se nepřekročil API limit
-            await Future.delayed(const Duration(milliseconds: 300));
-          } catch (e) {
-            // Chyba při načítání profilu - pokračovat s dalším hráčem
-          }
-        }
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Načíst profil hráče z Firestore
-  Future<Map<String, dynamic>?> getPlayerProfile({
-    required String teamId,
-    required int playerId,
-    required int season,
-  }) async {
-    try {
-      // Nejdříve zkusit načíst z nové struktury (v dokumentu hráče)
-      final playerDocId = '${teamId}_${playerId}_$season';
-      final playerDoc = await _firestore
-          .collection('players')
-          .doc(playerDocId)
-          .get();
-
-      if (playerDoc.exists && playerDoc.data() != null) {
-        final data = playerDoc.data()!;
-        // Pokud má hráč profil přímo v dokumentu
-        if (data.containsKey('statistics') || data.containsKey('profile')) {
-          return data;
-        }
-      }
-
-      // Pokud není v nové struktuře, zkusit ze staré struktury
-      final doc = await _firestore
-          .collection('teams')
-          .doc(teamId)
-          .collection('players')
-          .doc('squad_$season')
-          .collection('profiles')
-          .doc('player_$playerId')
-          .get();
-
-      if (!doc.exists || doc.data() == null) {
-        return null;
-      }
-
-      return doc.data();
-    } catch (e) {
-      return null;
-    }
-  }
+  // (dříve zde byly metody pro ukládání detailních profilů hráčů,
+  //  které aplikace aktuálně nevyužívá, proto byly odstraněny)
 
   // Načíst hráče týmu z Firestore
   Future<List<Player>> getPlayers({
