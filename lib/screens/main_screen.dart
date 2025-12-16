@@ -495,7 +495,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin, 
       );
     }
 
-    _autoUpdateService.startAutoUpdate(intervalMinutes: 1440); // Aktualizace jednou denně (24 hodin)
+    // Aktualizace přibližně 4× denně (každých 360 minut = 6 hodin)
+    _autoUpdateService.startAutoUpdate(intervalMinutes: 360);
   }
 
 

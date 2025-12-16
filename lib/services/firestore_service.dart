@@ -48,6 +48,24 @@ class FirestoreService {
     }
   }
 
+  /// Uložit zpětnou vazbu uživatele do kolekce `feedback`
+  Future<void> sendFeedback({
+    required String userEmail,
+    required String problemType,
+    required String message,
+  }) async {
+    try {
+      await _firestore.collection('feedback').add({
+        'userEmail': userEmail,
+        'problemType': problemType,
+        'message': message,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Real‑time stream novinek z kolekce `news`
   Stream<List<News>> getNewsStream({int limit = 20}) {
     return _firestore
