@@ -74,126 +74,73 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF3E5F44),
-              const Color(0xFF2D4A3E),
-              const Color(0xFF1E3A2E),
-            ],
-            stops: const [0.0, 0.5, 1.0],
+      body: Stack(
+        children: [
+          // Pozadí přes celou obrazovku
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/background.png',
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Jemné dekorativní prvky v pozadí s různými barvami
-              Positioned(
-                top: -100,
-                right: -100,
-                child: Container(
-                  width: 300,
-                  height: 300,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFF4A90E2).withOpacity(0.08), // Modrá
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -150,
-                left: -150,
-                child: Container(
-                  width: 400,
-                  height: 400,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFF5E936C).withOpacity(0.06), // Zelená
-                  ),
-                ),
-              ),
-              Positioned(
-                top: MediaQuery.of(context).size.height * 0.3,
-                left: -80,
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFFFB84D).withOpacity(0.06), // Oranžová/žlutá
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: MediaQuery.of(context).size.height * 0.2,
-                right: -60,
-                child: Container(
-                  width: 180,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFF6B8DD6).withOpacity(0.05), // Světle modrá
-                  ),
-                ),
-              ),
-              
-              // Hlavní obsah
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo s jemnou animací
-                      AnimatedBuilder(
-                        animation: _logoAnimation,
-                        builder: (context, child) {
-                          return Transform.scale(
-                            scale: 0.8 + (_logoAnimation.value * 0.2),
-                            child: Opacity(
-                              opacity: _logoAnimation.value,
-                              child: Image.asset(
-                                'assets/images/logo_a_text.png',
-                                width: 500,
-                                height: 300,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    
-                      const SizedBox(height: 60),
-                    
-                      // Jemný loading indikátor
-                      AnimatedBuilder(
-                        animation: _fadeAnimation,
-                        builder: (context, child) {
-                          return Opacity(
-                            opacity: _fadeAnimation.value,
-                            child: SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white.withOpacity(0.8),
-                                ),
-                                strokeWidth: 2.5,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+          // Tmavý layer pro ztmavení pozadí
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.3),
+            ),
           ),
-        ),
+          // Logo + načítací kolečko nad pozadím
+          SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Logo s jemnou animací
+                    AnimatedBuilder(
+                      animation: _logoAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: 0.8 + (_logoAnimation.value * 0.2),
+                          child: Opacity(
+                            opacity: _logoAnimation.value,
+                            child: Image.asset(
+                              'assets/images/logo_a_text.png',
+                              width: MediaQuery.of(context).size.width * 0.9,
+                              height: MediaQuery.of(context).size.height * 0.4,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 40),
+                    // Jemný loading indikátor
+                    AnimatedBuilder(
+                      animation: _fadeAnimation,
+                      builder: (context, child) {
+                        return Opacity(
+                          opacity: _fadeAnimation.value,
+                          child: SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white.withOpacity(0.8),
+                              ),
+                              strokeWidth: 2.5,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
