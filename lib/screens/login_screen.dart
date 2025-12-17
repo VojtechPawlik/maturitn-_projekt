@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _passwordError;
+  String? _emailSuccessMessage; // Pro zprávu o odeslání reset hesla
   bool _rememberMe = false;
 
   @override
@@ -130,18 +131,31 @@ class _LoginScreenState extends State<LoginScreen> {
     final String email = _emailController.text.trim();
     
     if (email.isEmpty) {
-      _showErrorMessage('Zadejte email pro reset hesla');
+      setState(() {
+        _emailSuccessMessage = 'Zadejte email pro reset hesla';
+      });
+      _formKey.currentState?.validate();
       return;
     }
+
+    setState(() {
+      _emailSuccessMessage = null;
+    });
 
     try {
       await _authService.sendPasswordResetEmail(email);
       if (mounted) {
-        _showSuccessMessage('Email pro reset hesla byl odeslán na $email');
+        setState(() {
+          _emailSuccessMessage = 'Email pro reset hesla byl odeslán na $email';
+        });
+        _formKey.currentState?.validate();
       }
     } catch (e) {
       if (mounted) {
-        _showErrorMessage(e.toString());
+        setState(() {
+          _emailSuccessMessage = e.toString();
+        });
+        _formKey.currentState?.validate();
       }
     }
   }
@@ -235,11 +249,30 @@ class _LoginScreenState extends State<LoginScreen> {
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  border: const OutlineInputBorder(),
+                  errorText: _emailSuccessMessage != null && _emailSuccessMessage!.contains('Zadejte') 
+                      ? _emailSuccessMessage 
+                      : null,
+                  helperText: _emailSuccessMessage != null && !_emailSuccessMessage!.contains('Zadejte')
+                      ? _emailSuccessMessage
+                      : null,
+                  helperStyle: TextStyle(
+                    color: _emailSuccessMessage != null && _emailSuccessMessage!.contains('odeslán')
+                        ? Colors.green
+                        : Colors.red,
+                  ),
                 ),
+                onChanged: (_) {
+                  if (_emailSuccessMessage != null) {
+                    setState(() {
+                      _emailSuccessMessage = null;
+                    });
+                    _formKey.currentState?.validate();
+                  }
+                },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Zadejte email';

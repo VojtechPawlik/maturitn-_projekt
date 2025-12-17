@@ -145,55 +145,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Přidat kamaráda'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Zadejte email kamaráda, kterého chcete přidat do žebříčku:'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: friendEmailController,
-              decoration: const InputDecoration(
-                labelText: 'Email kamaráda',
-                hintText: 'kamarad@example.com',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Zrušit'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
+      builder: (context) {
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            Future<void> handleAddFriend() async {
               final friendEmail = friendEmailController.text.trim();
+
+              // Základní kontroly
               if (friendEmail.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Zadejte email kamaráda'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                setStateDialog(() {
+                  errorText = 'Zadejte email kamaráda';
+                });
                 return;
               }
 
               if (friendEmail == userEmail) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Nemůžete přidat sami sebe'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                setStateDialog(() {
+                  errorText = 'Nemůžete přidat sami sebe';
+                });
                 return;
               }
 
+              // Jednoduchá kontrola formátu emailu
+              final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+              if (!emailRegex.hasMatch(friendEmail)) {
+                setStateDialog(() {
+                  errorText = 'Uživatel neexistuje nebo neplatný email';
+                });
+                return;
+              }
+
+              // Vše ok – zavřít dialog a přidat kamaráda (už neověřujeme existenci účtu ve Firestore)
               Navigator.pop(context);
-              
-              // Přidat kamaráda
+
               setState(() {
                 _isLoading = true;
               });
@@ -220,15 +206,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 );
               }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3E5F44),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Přidat'),
-          ),
-        ],
-      ),
+            }
+
+            return AlertDialog(
+              title: const Text('Přidat kamaráda'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Zadejte email kamaráda, kterého chcete přidat do žebříčku:',
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: friendEmailController,
+                    decoration: InputDecoration(
+                      labelText: 'Email kamaráda',
+                      hintText: 'kamarad@example.com',
+                      border: const OutlineInputBorder(),
+                      errorText: errorText,
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    onChanged: (_) {
+                      if (errorText != null) {
+                        setStateDialog(() {
+                          errorText = null;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Zrušit'),
+                ),
+                ElevatedButton(
+                  onPressed: handleAddFriend,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3E5F44),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Přidat'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
