@@ -1,3 +1,5 @@
+video na Youtube - https://www.youtube.com/watch?v=z0Bxu2MON9s
+
 🧩 Název projektu:
 Virtuální sázková aplikace na fotbalové zápasy
 
