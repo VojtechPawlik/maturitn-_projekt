@@ -99,33 +99,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _signInWithGoogle() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final result = await _authService.signInWithGoogle(rememberMe: _rememberMe);
-      
-      if (result != null && mounted) {
-        // Nastavit session po úspěšném přihlášení
-        await SessionManager().loginUser(
-          email: result.user?.email ?? 'google.user@gmail.com',
-          nickname: result.user?.displayName ?? 'Google uživatel',
-          rememberMe: _rememberMe,
-        );
-        
-        Navigator.of(context).pop(true);
-        _showSuccessMessage('Úspěšně přihlášen přes Google!');
-      }
-    } catch (e) {
-      if (mounted) {
-        _showErrorMessage(e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
 
   Future<void> _resetPassword() async {
     final String email = _emailController.text.trim();
@@ -158,24 +131,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _formKey.currentState?.validate();
       }
     }
-  }
-
-  void _showErrorMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  void _showSuccessMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
   void _showEmailVerificationDialog() {
@@ -344,30 +299,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
                     : const Text('Přihlásit se', style: TextStyle(fontSize: 16)),
-              ),
-              const SizedBox(height: 16),
-
-              // Oddělovač
-              const Row(
-                children: [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('nebo'),
-                  ),
-                  Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Přihlášení přes Google
-              OutlinedButton.icon(
-                onPressed: _isLoading ? null : _signInWithGoogle,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                icon: const Icon(Icons.account_circle, color: Colors.red),
-                label: const Text('Pokračovat s Google'),
               ),
               const SizedBox(height: 32),
 

@@ -1404,8 +1404,8 @@ class FirestoreService {
     required int season,
   }) async {
     try {
-      // Nejdříve zkusit načíst z nové kolekce players
-      final snapshot = await _firestore
+      // Nejdříve zkusit načíst z nové kolekce players s konkrétní sezónou
+      var snapshot = await _firestore
           .collection('players')
           .where('teamId', isEqualTo: teamId)
           .where('season', isEqualTo: season)
@@ -1426,41 +1426,67 @@ class FirestoreService {
         }).toList();
       }
 
-      // Pokud nejsou v nové kolekci, zkusit načíst ze staré struktury
-      final doc = await _firestore
-          .collection('teams')
-          .doc(teamId)
+      // Pokud nejsou s konkrétní sezónou, zkusit načíst bez filtru na sezónu (jakékoliv hráče pro tento tým)
+      snapshot = await _firestore
           .collection('players')
-          .doc('squad_$season')
+          .where('teamId', isEqualTo: teamId)
+          .limit(50) // Limit pro případ, že by bylo moc hráčů
           .get();
 
-      if (!doc.exists || doc.data() == null) {
-        return [];
+      if (snapshot.docs.isNotEmpty) {
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          return Player(
+            id: _parseIntFromMap(data['id']) ?? 0,
+            name: data['name']?.toString() ?? '',
+            number: _parseIntFromMap(data['number']) ?? 0,
+            position: data['position']?.toString() ?? '',
+            age: _parseIntFromMap(data['age']) ?? 0,
+            nationality: data['nationality']?.toString() ?? '',
+            photo: data['photo']?.toString() ?? '',
+          );
+        }).toList();
       }
 
-      final data = doc.data()!;
-      final playersData = data['players'];
-
-      if (playersData == null || !(playersData is List) || playersData.isEmpty) {
-        return [];
-      }
-
-      return playersData.map((playerData) {
-        // Zkontrolovat, jestli je playerData Map
-        if (playerData is! Map) {
-          return null;
-        }
+      // Pokud nejsou v nové kolekci, zkusit načíst ze staré struktury
+      // Zkusit různé sezóny
+      final seasonsToTry = [season, season - 1, season + 1, getCurrentSeason(), getCurrentSeason() - 1];
+      for (final trySeason in seasonsToTry) {
+        if (trySeason < 2020) continue; // Nezkoušet příliš staré sezóny
         
-        return Player(
-          id: _parseIntFromMap(playerData['id']) ?? 0,
-          name: playerData['name']?.toString() ?? '',
-          number: _parseIntFromMap(playerData['number']) ?? 0,
-          position: playerData['position']?.toString() ?? '',
-          age: _parseIntFromMap(playerData['age']) ?? 0,
-          nationality: playerData['nationality']?.toString() ?? '',
-          photo: playerData['photo']?.toString() ?? '',
-        );
-      }).whereType<Player>().toList();
+        final doc = await _firestore
+            .collection('teams')
+            .doc(teamId)
+            .collection('players')
+            .doc('squad_$trySeason')
+            .get();
+
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data()!;
+          final playersData = data['players'];
+
+          if (playersData != null && playersData is List && playersData.isNotEmpty) {
+            return playersData.map((playerData) {
+              // Zkontrolovat, jestli je playerData Map
+              if (playerData is! Map) {
+                return null;
+              }
+              
+              return Player(
+                id: _parseIntFromMap(playerData['id']) ?? 0,
+                name: playerData['name']?.toString() ?? '',
+                number: _parseIntFromMap(playerData['number']) ?? 0,
+                position: playerData['position']?.toString() ?? '',
+                age: _parseIntFromMap(playerData['age']) ?? 0,
+                nationality: playerData['nationality']?.toString() ?? '',
+                photo: playerData['photo']?.toString() ?? '',
+              );
+            }).whereType<Player>().toList();
+          }
+        }
+      }
+
+      return [];
     } catch (e) {
       return [];
     }

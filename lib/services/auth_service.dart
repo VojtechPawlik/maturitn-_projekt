@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,7 +8,6 @@ class AuthService {
   AuthService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Klíč pro uložení stavu "Zůstat přihlášen"
   static const String _rememberMeKey = 'remember_me';
@@ -78,40 +76,6 @@ class AuthService {
       throw _handleFirebaseAuthError(e);
     } catch (e) {
       throw 'Neočekávaná chyba: $e';
-    }
-  }
-
-  /// Přihlášení pomocí Google
-  Future<UserCredential?> signInWithGoogle({bool rememberMe = false}) async {
-    try {
-      // Spustit Google Sign In flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
-      if (googleUser == null) {
-        // Uživatel zrušil přihlášení
-        return null;
-      }
-
-      // Získat autentizační údaje
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      // Vytvořit credential pro Firebase
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Přihlásit se do Firebase
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
-
-      // Uložit stav "Zůstat přihlášen"
-      await _setRememberMe(rememberMe);
-
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      throw _handleFirebaseAuthError(e);
-    } catch (e) {
-      throw 'Chyba při přihlášení přes Google: $e';
     }
   }
 
@@ -209,11 +173,6 @@ class AuthService {
   /// Odhlášení
   Future<void> signOut() async {
     try {
-      // Odhlásit z Google pokud byl přihlášen přes Google
-      if (await _googleSignIn.isSignedIn()) {
-        await _googleSignIn.signOut();
-      }
-      
       // Odhlásit z Firebase
       await _auth.signOut();
       
