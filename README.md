@@ -2,9 +2,6 @@
 
 Virtuální sázková aplikace na fotbalové zápasy – **Strike!**
 
-
-Video ukázka a prezentace projektu je na YouTube:  
-`https://www.youtube.com/watch?v=z0Bxu2MON9s`
 ---
 
 ### 📝 Co je tento projekt
@@ -17,6 +14,8 @@ Virtuální sázková aplikace na fotbalové zápasy, která:
 
 Aplikace slouží jako **maturitní projekt** – kombinuje práci s reálným API (API-Football), moderním mobilním vývojem (Flutter) a backendem (Django / Firebase).
 
+Video ukázka a prezentace projektu je na YouTube:  
+`https://www.youtube.com/watch?v=z0Bxu2MON9s`
 ---
 
 ### ✅ Cíle a kritéria projektu
