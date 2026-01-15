@@ -1,0 +1,667 @@
+% ŠABLONA PRO PSANÍ ZÁVĚREČNÉ STUDIJNÍ PRÁCE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Autor: Jakub Dokulil (kubadokulil99@gmail.com)
+% Tato šablona byla vytvořena tak, aby pomocí ní mohli v systému LaTeX soutěžící sázet své práce a zároveň odpovídala požadavkům na formátování vyplývajícím z wordové šablony umístěné na webu soc.cz.
+%
+\documentclass[12pt, a4paper,
+oneside,      %% -- odkomentujte, pokud chcete svou práci mít pouze jednostrannou, mezera pro hřbet pak automaticky bude pouze na levé straně
+%twoside,        %% -- pro oboustranné práce, mezera pro hřbet následně střídá strany.
+%openright
+]{report}
+
+
+
+% --- odstraneni zbytkoveho textu "superiorSup" a pod. ---
+%\AtBeginDocument{%
+	% pojistka proti nechtenemu textu nactenemu z aux/toc
+	%\immediate\write16{(cleaning stray figureversions output...)}%
+	%\clearpage
+	%\thispagestyle{empty}
+	% uplne vyprazdneni vseho, co by se objevilo mimo hlavni text
+	%\let\superiorSup\relax
+	%\let\textOsF\relax
+	%\let\textTOsF\relax
+	%\let\liningLF\relax
+	%\let\liningTLF\relax
+	%\let\tabularTab\relax
+	%\let\proportionalProp\relax
+	%\let\tabularmath\relax
+	%\let\proportionalmath\relax
+	%\let\fontspechyperref\relax
+	% zajisteni, ze se nic nezobrazi pred titulni stranou
+	%\null
+	%\newpage
+%}
+%% Nutné balíčky a nastavení
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Proměnné
+\newcommand\obor{INFORMAČNÍ TECHNOLOGIE} %% -- napiš číslo a název tvého oboru
+\newcommand\kodOboru{18-20-M/01} %% -- napiš číslo a název tvého oboru
+\newcommand\zamereni{se zaměřením na počítačové sítě a programování} %% -- napiš číslo a název tvého oboru
+\newcommand\skola{Střední škola průmyslová a umělecká, Opava} %% vyplň název školy
+\newcommand\trida{IT4} %% vyplň jméno svého konzultanta
+\newcommand\jmenoAutora{Vojtěch Pawlik}  %% vyplň své jméno
+\newcommand\skolniRok{2025/26} %% vyplň rok
+\newcommand\datumOdevzdani{4. 1. 2026} %% vyplň rok
+\newcommand\nazevPrace{Mobilní aplikace pro virtuální sázení fotbalových zápasů} %% vyplň název své práce
+
+\title{\nazevPrace} %% -- Název tvé práce
+\author{\jmenoAutora} %% -- tvé jméno
+\date{\datumOdevzdani} %% -- rok, kdy píšeš SOČku
+
+\usepackage[top=2.5cm, bottom=2.5cm, left=3.5cm, right=1.5cm]{geometry} %% nastaví okraje, left -- vnitřní okraj, right -- vnější okraj
+
+\usepackage[czech]{babel} %% balík babel pro sazbu v češtině
+\usepackage[utf8]{inputenc} %% balíky pro kódování textu
+\usepackage[T1]{fontenc}
+\usepackage{cmap} %% balíček zajišťující, že vytvořené PDF bude prohledávatelné a kopírovatelné
+
+\usepackage{graphicx} %% balík pro vkládání obrázků
+
+\usepackage{subcaption} %% balíček pro vkládání podobrázků
+
+\usepackage{hyperref} %% balíček, který v PDF vytváří odkazy
+
+\linespread{1.25} %% řádkování
+\setlength{\parskip}{0.5em} %% odsazení mezi odstavci
+
+
+\usepackage[pagestyles]{titlesec} %% balíček pro úpravu stylu kapitol a sekcí
+\titleformat{\chapter}[block]{\scshape\bfseries\LARGE}{\thechapter}{10pt}{\vspace{0pt}}[\vspace{-22pt}]
+\titleformat{\section}[block]{\scshape\bfseries\Large}{\thesection}{10pt}{\vspace{0pt}}
+\titleformat{\subsection}[block]{\bfseries\large}{\thesubsection}{10pt}{\vspace{0pt}}
+
+
+\usepackage{tocloft} % Balíček umožní přizpůsobit vzhled tabulky obsahu
+\setlength{\cftbeforechapskip}{0pt}  % Menší rozestup pro kapitoly
+\setlength{\cftbeforesecskip}{0pt}   % Menší rozestup pro sekce
+
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{1}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\renewcommand{\headrulewidth}{0.025pt}
+
+\usepackage{booktabs}
+
+\usepackage{url}
+
+%% Balíčky co se můžou hodit :) 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{pdfpages} %% Balíček umožňující vkládat stránky z PDF souborů, 
+
+\usepackage{upgreek} %% Balíček pro sazbu stojatých řeckých písmen, třeba u jednotky mikrometr. Například stojaté mí: \upmu, stojaté pí: \uppi
+
+\usepackage{amsmath}    %% Balíčky amsmath a amsfonts 
+\usepackage{amsfonts}   %% pro sazbu matematických symbolů
+\usepackage{esint}     %% pro sazbu různých integrálů (např \oiint)
+\usepackage{mathrsfs}
+\usepackage{helvet} % Helvet font
+\usepackage{mathptmx} % Times New Roman
+\makeatletter
+\@namedef{ver@figureversions.sty}{9999/99/99}
+\newcommand{\DeclareFigureVersion}[2]{}
+\newcommand{\figureversion}[1]{}
+\makeatother
+
+
+\makeatletter
+\providecommand{\superiorSup}{}
+\providecommand{\textOsF}{}
+\providecommand{\textTOsF}{}
+\providecommand{\liningLF}{}
+\providecommand{\liningTLF}{}
+\providecommand{\tabularTab}{}
+\providecommand{\proportionalProp}{}
+\makeatother
+\makeatletter
+\providecommand{\superiorSup}{}
+\providecommand{\textOsF}{}
+\providecommand{\textTOsF}{}
+\providecommand{\liningLF}{}
+\providecommand{\liningTLF}{}
+\providecommand{\tabularTab}{}
+\providecommand{\proportionalProp}{}
+\providecommand{\tabularmath}{}
+\providecommand{\proportionalmath}{}
+\makeatother
+
+%\usepackage{Oswald} % Oswald font
+
+
+%% makra pro sazbu matematiky
+\newcommand{\dif}{\mathrm{d}} %% makro pro sazbu diferenciálu, místo toho
+%% abych musel psát '\mathrm{d}' mi stačí napsat '\dif' což je mnohem 
+%% kratší a mohu si tak usnadnit práci
+
+\usepackage{listings}
+\usepackage{xcolor}
+
+\renewcommand{\lstlistingname}{Kód}% Listing -> Algorithm
+\renewcommand{\lstlistlistingname}{Seznam programových kódů}% List of Listings -> List of Algorithms
+
+%% Definice 
+\lstdefinelanguage{JavaScript}{
+	morekeywords=[1]{break, continue, delete, else, for, function, if, in,
+		new, return, this, typeof, var, void, while, with},
+	% Literals, primitive types, and reference types.
+	morekeywords=[2]{false, null, true, boolean, number, undefined,
+		Array, Boolean, Date, Math, Number, String, Object},
+	% Built-ins.
+	morekeywords=[3]{eval, parseInt, parseFloat, escape, unescape},
+	sensitive,
+	morecomment=[s]{/*}{*/},
+	morecomment=[l]//,
+	morecomment=[s]{/**}{*/}, % JavaDoc style comments
+	morestring=[b]',
+	morestring=[b]"
+}[keywords, comments, strings]
+
+
+\lstdefinelanguage[ECMAScript2015]{JavaScript}[]{JavaScript}{
+	morekeywords=[1]{await, async, case, catch, class, const, default, do,
+		enum, export, extends, finally, from, implements, import, instanceof,
+		let, static, super, switch, throw, try},
+	morestring=[b]` % Interpolation strings.
+}
+
+\lstalias[]{ES6}[ECMAScript2015]{JavaScript}
+
+% Nastavení barev
+% Requires package: color.
+\definecolor{mediumgray}{rgb}{0.3, 0.4, 0.4}
+\definecolor{mediumblue}{rgb}{0.0, 0.0, 0.8}
+\definecolor{forestgreen}{rgb}{0.13, 0.55, 0.13}
+\definecolor{darkviolet}{rgb}{0.58, 0.0, 0.83}
+\definecolor{royalblue}{rgb}{0.25, 0.41, 0.88}
+\definecolor{crimson}{rgb}{0.86, 0.8, 0.24}
+
+% Nastavení pro Python
+\lstdefinestyle{Python}{
+	language=Python,
+	backgroundcolor=\color{white},
+	basicstyle=\ttfamily,
+	breakatwhitespace=false,
+	breaklines=false,
+	captionpos=b,
+	columns=fullflexible,
+	commentstyle=\color{mediumgray}\upshape,
+	emph={},
+	emphstyle=\color{crimson},
+	extendedchars=true,  % requires inputenc
+	fontadjust=true,
+	frame=single,
+	identifierstyle=\color{black},
+	keepspaces=true,
+	keywordstyle=\color{mediumblue},
+	keywordstyle={[2]\color{darkviolet}},
+	keywordstyle={[3]\color{royalblue}},
+	literate=%
+	{á}{{\'a}}1 {č}{{\v{c}}}1 {ď}{{\v{d}}}1 {é}{{\'e}}1 {ě}{{\v{e}}}1
+	{í}{{\'i}}1 {ň}{{\v{n}}}1 {ó}{{\'o}}1 {ř}{{\v{r}}}1 {š}{{\v{s}}}1
+	{ť}{{\v{t}}}1 {ú}{{\'u}}1 {ů}{{\r{u}}}1 {ý}{{\'y}}1 {ž}{{\v{z}}}1,		
+	numbers=left,
+	numbersep=5pt,
+	numberstyle=\tiny\color{black},
+	rulecolor=\color{black},
+	showlines=true,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	stringstyle=\color{forestgreen},
+	tabsize=2,
+	title=\lstname,
+	upquote=true  % requires textcomp	
+}
+
+
+\lstdefinestyle{JSES6Base}{
+	backgroundcolor=\color{white},
+	basicstyle=\ttfamily,
+	breakatwhitespace=false,
+	breaklines=false,
+	captionpos=b,
+	columns=fullflexible,
+	commentstyle=\color{mediumgray}\upshape,
+	emph={},
+	emphstyle=\color{crimson},
+	extendedchars=true,  % requires inputenc
+	fontadjust=true,
+	frame=single,
+	identifierstyle=\color{black},
+	keepspaces=true,
+	keywordstyle=\color{mediumblue},
+	keywordstyle={[2]\color{darkviolet}},
+	keywordstyle={[3]\color{royalblue}},
+ literate=%
+{á}{{\'a}}1 {č}{{\v{c}}}1 {ď}{{\v{d}}}1 {é}{{\'e}}1 {ě}{{\v{e}}}1
+{í}{{\'i}}1 {ň}{{\v{n}}}1 {ó}{{\'o}}1 {ř}{{\v{r}}}1 {š}{{\v{s}}}1
+{ť}{{\v{t}}}1 {ú}{{\'u}}1 {ů}{{\r{u}}}1 {ý}{{\'y}}1 {ž}{{\v{z}}}1,		
+	numbers=left,
+	numbersep=5pt,
+	numberstyle=\tiny\color{black},
+	rulecolor=\color{black},
+	showlines=true,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	stringstyle=\color{forestgreen},
+	tabsize=2,
+	title=\lstname,
+	upquote=true  % requires textcomp
+}
+
+\lstdefinestyle{JavaScript}{
+	language=JavaScript,
+	style=JSES6Base,
+}
+\lstdefinestyle{ES6}{
+	language=ES6,
+	style=JSES6Base
+}
+
+\setlength{\headheight}{15pt}
+
+
+
+\usepackage{lipsum} %% balíček který píše lipsum (nesmyslný text, který se používá pro kontrolu typografie)
+
+%\AtBeginDocument{\clearpage\pagestyle{empty}}
+
+%% Začátek dokumentu
+%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+	
+	\pagestyle{empty}
+	\pagenumbering{Roman}
+	
+	\cleardoublepage
+
+%% Titulní stránka s informacemi
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	{\fontfamily{phv}\selectfont
+		%% Logo školy
+		\begin{figure}[h]
+			\centering
+			\includegraphics[width=0.6\linewidth]{image/logo-skoly.png} 
+		\end{figure}
+		
+		
+		%% Hlavička práce a její název (viz proměnná \nazev prace)
+		%% \sffamily %%% bezpatkové písmo - sans serif
+		{\bfseries %%% písmo na stránce je tučně
+			\begin{center}
+				\vspace{0.025 \textheight}
+				\LARGE{ZÁVĚREČNÁ STUDIJNÍ PRÁCE}\\
+				\large{dokumentace}\\
+				\vspace{0.075 \textheight}
+				\LARGE {\nazevPrace}\\
+			\end{center}  
+		}%%%
+		
+		\begin{figure}[h]
+			\centering
+			\includegraphics[width=0.4\linewidth]{image/strike-logo.png} 
+		\end{figure}
+		
+		\vspace{0.02 \textheight}
+		\begin{table}[h!]
+			\begin{tabular}{ll}
+				\textbf{Autor:} & \jmenoAutora\\ 
+				\textbf{Obor:} & \kodOboru { } \obor\\
+				\textbf{} & \zamereni\\
+				\textbf{Třída:} & \trida\\
+				\textbf{Školní rok:} & \skolniRok\\
+			\end{tabular}
+			
+		\end{table}		
+	}
+	
+\cleardoublepage %% Zalomení dvojstránky
+	
+%% Stránka obsahující poděkování a prohlášení
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Poděkování - nepovinné
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\noindent{\large{\bfseries{Poděkování}\\}}
+	\noindent Rád bych poděkoval panům učitelům Img. Petru Grussmannovi a Mgr. Marku Lučnému, a také spolužákům za jejich pomoc i cenné rady při projektu.
+	
+	\vspace*{0.7\textheight} %% Vertikální mezeru je možné upravit
+
+%% Prohlášení - povinné
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\noindent{\large{\bfseries{Prohlášení}\\}}  %% uprav si koncovky podle toho na jaký rod se cítíš, vypadá to pak lépe :) 
+	\noindent{Prohlašuji, že jsem závěrečnou práci vypracoval samostatně a uvedl veškeré použité 
+		informační zdroje.\\}
+	\noindent{Souhlasím, aby tato studijní práce byla použita k výukovým a prezentačním účelům na Střední průmyslové a umělecké škole v Opavě, Praskova 399/8.}
+	\vfill
+	\noindent{V Opavě \datumOdevzdani\\}
+	\noindent
+	\begin{minipage}{\linewidth}
+		\hspace{9.5cm} 
+		\begin{tabular}{@{}p{6cm}@{}}
+			\dotfill \\
+			Podpis autora
+		\end{tabular}
+	\end{minipage}
+	
+	\cleardoublepage %% Zalomení dvojstránky
+
+%% Stránka obsahující abstrakt (anotaci)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+
+%% Abstrakt v češtině
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\noindent{\Large{\bfseries{Abstrakt}\\}}
+	\noindent Strike! je mobilní aplikace pro virtuální sázení na fotbalové zápasy vyvinutá ve Flutteru s Firebase backendem. Umožňuje sátet na zápasy z top 5 evropských lig za virtuální měnu bez finančního rizika.\\
+	Aplikace zobrazuje realné zápasy v kalendáři, aktuální vásledky, tabulky lig a detailní informace o jednotlivých týmech a jejich hráčích. Uživatelé sázejí na výsledek zápasu s automatickým vyhodnocením po skončení. Každý uživatel má virtuální zůstatek doplňovaný každodenní odměnou. Aplikace obsahuje sociální prvky: přidávání kamarádů a soukromé žebříčky pro soutěžení mezi přáteli.\\
+	Výsledný projekt je především určen fotbalovým fanouškům, kteří chtějí otestovat své znalosti s přáteli bez finančního rizika. Poskytuje přehledný přístup k fotbalovým informacím a zábavnou formu soutěžení.
+	
+	\vspace{18pt}
+	
+	\noindent{\large{\bfseries{Klíčová slova}}}
+	
+	\noindent Virtuální sázení, fotbal, Flutter, Firebase, \dots 
+	
+	\vspace{18pt}
+
+%% Abstrakt v angličtině
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+	\noindent{\Large{\bfseries{Abstract}}}
+	
+	\noindent Strike! is a mobile application for virtual betting on football matches. developed in Flutter with a Firebase backend. It enables users to bet on matches from the top 5 European leagues using virtual currency without financial risk.\\
+	The application displays real matches in a calendar, current results, league tables, and detailed information about teams and players. Using bet on match outcomes with automatic evaluation after completion. Each user has a virtual balance that can be topped up with daily rewards. The application includes social features: adding friends and private leaderboards for competition among friends.\\
+	Final project is designed for football fans who want to test their knowledge and compete with friends without financial risk. It provides clear access to football information and an entertaining form of competition.%% přepiš!!
+	
+	\vspace{18pt}
+	
+	\noindent{\large{\bfseries{Keywords}}}
+	
+	\noindent Virtual betting, football, Flutter, Firebase, \dots 
+	
+	\clearpage %% Zalomení stránky
+
+%% Stránka s generovaným obsahem
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+	
+	\tableofcontents %% Vygeneruje tabulku s obsahem
+
+	\pagenumbering{arabic} %% Nastavení způsobu číslování stránek (alternativy roman | Roman)
+	\setcounter{page}{1} %% Nastavení počitadla stránek
+
+%% Stránka s úvodem - povinná část
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%		
+	\chapter*{Úvod}
+%Tento příkaz vytvoří novou kapitolu s názvem "Úvod" ve vašem dokumentu.
+%Hvězdička * u příkazu \chapter* znamená, že tato kapitola nebude mít číslo. Ve výsledném dokumentu se tedy objeví jako "Úvod" bez předcházejícího čísla kapitoly, které se obvykle zobrazuje u číslovaných kapitol.
+%Tento příkaz také znamená, že kapitola se automaticky neobjeví v obsahu, protože LaTeX standardně zahrnuje do obsahu pouze číslované kapitoly.
+	\addcontentsline{toc}{chapter}{Úvod}
+%Tento příkaz ručně přidává záznam do obsahu.
+%První parametr toc označuje, že přidáváme záznam do Table of Contents (obsahu).
+%Druhý parametr chapter specifikuje úroveň záznamu. V tomto případě říkáme, že přidávaný záznam má být považován za kapitolu.
+%Třetí parametr Úvod je text, který se objeví v obsahu. V tomto případě bude v obsahu zobrazen název "Úvod".	
+Fotbal patří k nejpopulárnějším sportům a sázení na zápasy je rozšířené. Reálné sázení s sebou nese finanční riziko a může vést k problémům. Proto roste zájem o bezpečné alternativy, které umožňují soutěžit bez finančního rizika.
+Tato práce představuje vývoj mobilní aplikace Strike! pro virtuální sázení na fotbalové zápasy. Program kombinuje prvky sázení se sociálními\\ funkcemi a poskytuje prostředí pro testování znalostí a soutěžení s přáteli.\\ \\
+Hlavním cílem je vytvořit funkční mobilní aplikaci, která zobrazuje reálné zápasy z top 5\\ evropských lig, umožňuje sázet na výsledky za virtuální měnu a automaticky vyhodnocuje sázky po skončení zápasů. Důraz je kladen na přehledné zobrazení informací, intuitivní\\ ovládání a sociální prvky pro soutěžení mezi uživateli.\\ \\
+Pro vývoj byla zvolena technologie Flutter pro multiplatformní mobilní aplikaci a Firebase jako backend řešení pro ukládání dat, autentizaci uživatelů a správu obsahu. Data o zápasech jsou získávána z externího API, které poskytuje aktuální informace o fotbalových utkáních.\\ \\
+Práce je rozdělena do několika částí. Nejprve je představena analýza požadavků a návrh\\ architektury systému. Následuje popis implementace jednotlivých funkcionalit včetně\\ autentizace, zobrazení zápasů, sázkového systému a sociálních prvků. Dále jsou diskutovány použité technologie a jejich výhody. Závěr obsahuje zhodnocení dosažených výsledků a\\ možnosti budoucího rozšíření.\\ \\
+Tato práce demonstruje praktické využití moderních technologií pro vývoj mobilních aplikací a ukazuje, jak lze kombinovat reálná data s interaktivními prvky pro vytvoření zábavného a vzdělávacího prostředí pro fotbalové fanoušky. 
+
+%Tipy k psaní úvodu
+%Je povinný, nadpis neměňte, rozsah - max. 1 strana. 
+%Tato část práce obsahuje: 
+%* náhled do řešené problematiky, zdůvodnění volby problematiky, 
+%* předem definované cíle práce, 
+%* motivaci pro další čtení textu včetně stručného uvedení obsahu následujících kapitol 
+
+
+\chapter{Úvod do projektu}
+
+\section{Přehled projektu}
+\label{sec:uvod}
+
+Projekt Strike! je mobilní aplikace pro virtuální sázení na fotbalové zápasy vyvinutá ve Flutteru. Cílem je poskytnout uživatelům bezpečnou platformu pro soutěžení bez finančního rizika při využití reálných dat z evropských lig.
+Aplikace umožňuje uživatelům sázet na zápasy z Premier League, La Liga, Serie A, Bundesligy a Ligue 1 za virtuální měnu. Systém automaticky vyhodnocuje sázky po skončení zápasů a aktualizuje zůstatky uživatelů. Součástí jsou také sociální funkce pro soutěžení s přáteli.
+Projekt kombinuje moderní mobilní technologie s cloudovým backendem pro vytvoření komplexního řešení, které poskytuje aktuální fotbalové informace a zábavnou formu soutěžení.
+
+\section{Rozsah a cíle práce}
+Práce pokrývá kompletní vývoj mobilní aplikace od analýzy požadavků až po implementaci a testování. Hlavním cílem je vytvořit funkční aplikaci, která splňuje všechny definované funkční a nefunkční požadavky.
+Důraz je kladen na použití moderních technologií, jako je Flutter pro frontend a Firebase pro backend, což umožňuje rychlý vývoj a snadnou údržbu. Aplikace je navržena tak, aby byla intuitivní, bezpečná a poskytovala příjemnou uživatelskou zkušenost.
+
+\section{Výhody používání Flutteru}
+Flutter umožňuje vývoj aplikací pro Android a iOS z jednoho zdrojového kódu, což zkracuje dobu vývoje a snižuje náklady na údržbu. Hot reload umožňuje okamžité zobrazení změn během vývoje bez nutnosti restartu aplikace. Widget systém poskytuje bohatou sadu komponent pro rychlé vytváření uživatelského rozhraní.
+Flutter poskytuje vysoký výkon díky kompilaci do nativního kódu, což zajišťuje plynulé animace a rychlou odezvu aplikace. Framework také nabízí konzistentní vzhled napříč platformami, což znamená, že aplikace vypadá stejně na Androidu i iOS. Velká komunita a rozsáhlá dokumentace usnadňují řešení problémů a učení.
+
+\section{Výhody používání Firebase}
+Firebase poskytuje cloudové služby, které eliminují potřebu vlastního serveru a zjednodušují vývoj. Firebase Authentication nabízí připravené metody autentizace včetně emailu, Google Sign In a Sign in with Apple, což výrazně zkracuje dobu implementace. Cloud Firestore poskytuje škálovatelnou NoSQL databázi s real-time synchronizací dat.
+Firebase automaticky škáluje infrastrukturu podle potřeby, takže aplikace zvládne růst uživatelské základny bez nutnosti ručního zásahu. Platforma také poskytuje bezpečnostní pravidla pro kontrolu přístupu k datům a automatické zálohování. Firebase Remote Config umožňuje dynamickou konfiguraci aplikace bez nutnosti aktualizace v obchodech.
+
+	\chapter{Využité technologie}
+	
+	\section{Flutter framework} %%[Text, který bude v obsahu]{Text, který se vytiskne na stránce} Zkus měnit jednotlivé závorky a uvidíš :) 
+	Flutter je multiplatformní framework od Googlu pro vývoj mobilních aplikací. Umožňuje vytvářet nativní aplikace pro Android a iOS z jednoho zdrojového kódu. Framework používá programovací jazyk Dart a poskytuje bohatou sadu widgetů pro vytváření uživatelského rozhraní.
+	V projektu je Flutter použit pro vytvoření všech obrazovek a komponent uživatelského rozhraní. Widget systém umožňuje vytvářet složité a interaktivní rozhraní s možností vlastního stylování. State management je řešen pomocí StatefulWidget a ValueNotifier pro reaktivní aktualizace rozhraní.
+	
+%	Když chceš odkazovat na obrázek, stačí pak už jen napsat příkaz \texttt{ref} a do závorek napsat označení obrázku. Třeba logo SOČky, můžeš vidět na obrázku \ref{fig:logoSSPU} \cite{socSSPU}.
+	
+	\section{Firebase platforma}
+	Firebase je cloudová platforma od Googlu, která poskytuje řadu služeb pro vývoj mobilních aplikací. V projektu je použito několik Firebase služeb včetně Firebase Core pro inicializaci, Firebase Authentication pro správu uživatelů a Cloud Firestore pro ukládání dat.
+	Firebase Authentication umožňuje implementovat různé metody přihlášení včetně emailu a hesla, Google Sign In a Sign in with Apple. Cloud Firestore slouží jako NoSQL databáze pro ukládání informací o uživatelích, zápasech, sázkách a dalších datech. Firebase Remote Config umožňuje dynamickou konfiguraci aplikace bez nutnosti aktualizace.
+	
+	\section{Externí knihovny a závislosti}
+	Projekt využívá několik externích knihoven pro rozšíření funkcionality. Google Sign In a Sign in with Apple umožňují uživatelům přihlásit se pomocí svých účtů. HTTP knihovna je použita pro komunikaci s externím API-Football pro získávání dat o zápasech.
+	SharedPreferences slouží pro lokální ukládání uživatelských preferencí a nastavení aplikace. URL Launcher umožňuje otevírání externích odkazů a emailových klientů. Všechny tyto knihovny jsou spravovány pomocí správce balíčků pub, který je součástí Flutter ekosystému.
+	
+	\section{Externí API služby}
+	API-Football je externí služba, která poskytuje aktuální data o fotbalových zápasech, týmech, hráčích a výsledcích. Integrace s tímto API umožňuje aplikaci zobrazovat reálné informace o zápasech z evropských lig.
+	Komunikace s API probíhá pomocí HTTP požadavků, kde aplikace získává data o zápasech pro konkrétní datum, informace o týmech a jejich hráčích. Získaná data jsou následně zpracována a uložena do Firestore databáze pro rychlejší přístup a snížení počtu API volání.
+	
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=1.0\linewidth]{image/API.png}	
+		\caption{how api works}
+	\end{figure}
+	
+	\chapter{způsoby řešení a použité postupy}
+	
+	\section{Architektura aplikace}
+	Aplikace je navržena s důrazem na čistou architekturu a oddělení zodpovědností. Kód je organizován do logických celků: screens pro obrazovky, services pro obchodní logiku a models pro datové struktury. Tato organizace usnadňuje údržbu a rozšiřování funkcionality.
+	Každá služba má jasně definovanou zodpovědnost. AuthService se stará o autentizaci, FirestoreService o databázové operace a ApiFootballService o komunikaci s externím API. Toto oddělení umožňuje snadné testování jednotlivých komponent a jejich nezávislý vývoj.
+	
+	\section{Implementace autentizace}
+	Autentizace je implementována pomocí Firebase Authentication, která podporuje několik metod přihlášení. Email a heslo autentizace zahrnuje registraci s ověřením emailu, přihlášení a správu uživatelských účtů. Google Sign In a Sign in with Apple poskytují alternativní způsoby přihlášení pro lepší uživatelskou zkušenost.
+	Session management je řešen pomocí SessionManager služby, která ukládá informace o přihlášeném uživateli a spravuje jeho session. Tato služba také zajišťuje synchronizaci dat mezi lokálním úložištěm a cloudovou databází.
+	\newpage
+	\subsection{Email a heslo autentizace}
+	Autentizace je implementována pomocí Firebase Authentication. Registrace zahrnuje zadání emailu a hesla, validaci vstupů a vytvoření účtu. Po registraci je uživateli odeslán verifikační email, který musí potvrdit před prvním přihlášením.
+	Přihlášení probíhá zadáním emailu a hesla. Systém ověří přihlašovací údaje proti Firebase Authentication a při úspěchu vytvoří uživatelskou session. Pokud email není ověřen, uživatel je informován a může přejít na obrazovku ověření emailu.\\
+	Technicky je autentizace implementována pomocí metod \texttt{createUserWithEmailAndPassword} a \texttt{signInWithEmailAndPassword} z Firebase Authentication SDK.\\ Tyto metody vracejí \texttt{UserCredential} objekt, který obsahuje informace o uživateli. Pro zpracování chyb je použita metoda \texttt{\_handleFirebaseAuthError}, která převádí Firebase AuthException kódy na čitelné chybové zprávy v češtině.
+	
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=0.4\linewidth]{image/email.PNG}	
+		\hfill
+		\includegraphics[width=0.4\linewidth]{image/overeni-emailu.png}	
+	\end{figure}
+	\newpage
+
+	\section{Správa dat a komunikace s backendem}
+	FirestoreService zajišťuje všechny operace s Cloud Firestore databází. Služba obsahuje metody pro čtení a zápis dat o zápasech, týmech, sázkách a uživatelích. Implementována je také cache strategie pro optimalizaci výkonu a snížení počtu databázových dotazů.
+	ApiFootballService komunikuje s externím API pro získávání aktuálních dat o zápasech. Služba obsahuje metody pro načítání zápasů pro konkrétní datum, informací o týmech a jejich hráčích. Získaná data jsou následně zpracována a uložena do Firestore pro budoucí použití.
+	
+	\section{Technická realizace propojení s databází}
+	Propojení s Cloud Firestore databází je realizováno pomocí \texttt{FirebaseFirestore.instance}, který poskytuje přístup k databázi. Všechny operace jsou asynchronní a používají metody jako \texttt{get()}, \texttt{set()}, \texttt{update()} a \texttt{delete()} pro práci s dokumenty a kolekcemi.\\
+	Pro hromadné operace je použito \texttt{Batch} API, které umožňuje provést více zápisů atomicky. Tento přístup je využit například při ukládání týmů z tabulky, kde jsou všechny týmy uloženy v jednom batch operaci, což zajišťuje konzistenci dat.\\
+	Real-time synchronizace je implementována pomocí \texttt{snapshots()} streamů, které automaticky aktualizují data při změnách v databázi. Tento přístup je použit například pro zobrazení novinek, kde se data aktualizují automaticky bez nutnosti ručního obnovení.
+	
+	\section{Implementace cache strategie}
+	Cache strategie je implementována ve dvou vrstvách. První vrstva využívá SharedPreferences pro ukládání jednoduchých datových typů jako jsou uživatelské preference, stav přihlášení a zůstatek uživatele. Tato data jsou uložena lokálně a načítána při spuštění aplikace.\\
+	Druhá vrstva cache využívá Firestore databázi jako mezipaměť pro data z externího API. Před načtením dat z API se nejprve zkontroluje, zda data nejsou již uložena v Firestore. Pokud jsou data v databázi a jsou aktuální, použijí se data z databáze místo volání API. Tento přístup výrazně snižuje počet API volání a zrychluje načítání dat.\\
+	Pro určení aktuálnosti dat je použito pole \texttt{updated} s časovou značkou \texttt{FieldValue.serverTimestamp()}, které automaticky nastaví čas uložení. Před použitím dat z cache se kontroluje, zda data nejsou starší než určitý časový interval.
+	\newpage
+	\section{Integrace s externím API}
+	Komunikace s API-Football je realizována pomocí HTTP knihovny, která poskytuje metody pro vytváření HTTP požadavků. API klíč je bezpečně uložen v Firebase Remote Config, což umožňuje změnu klíče bez nutnosti aktualizace aplikace.\\
+	Před každým API voláním se API klíč načte z Remote Config pomocí metody \texttt{initializeApiKey()}. Tato metoda nastaví konfiguraci Remote Config s minimálním fetch intervalem a načte API klíč pomocí \texttt{getString('api\_football\_key')}.\\
+	HTTP požadavky jsou vytvářeny pomocí metody \texttt{http.get()} s URI a hlavičkami obsahujícími API klíč. Odpověď z API je zpracována pomocí \texttt{json.decode()}, který převede JSON string na Dart objekt. Pro zpracování chyb je implementována kontrola status kódu odpovědi a validace struktury JSON dat.\\
+	Získaná data z API jsou následně transformována do modelů aplikace a uložena do Firestore databáze pro budoucí použití. Tento proces zahrnuje mapování polí z API formátu do formátu používaného v aplikaci.
+	
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=0.7\linewidth]{image/api-kod.png}
+		\caption{kód-api}	
+	\end{figure}
+	
+	\newpage
+	\section{Uživatelské rozhraní}
+	Uživatelské rozhraní je navrženo s důrazem na jednoduchost a přehlednost. Navigace je řešena pomocí spodní navigační lišty s pěti hlavními sekcemi. Každá obrazovka má jasně definovanou funkci a obsah.
+	Animace a přechody jsou použity pro zlepšení uživatelské zkušenosti a vizuální zpětnou vazbu při interakcích.
+	
+	\subsection{Technická realizace uživatelského rozhraní}
+	Uživatelské rozhraní je implementováno pomocí Flutter widget systému, kde každá obrazovka je \texttt{StatefulWidget} nebo \texttt{StatelessWidget}. Pro obrazovky s dynamickým obsahem je použito \texttt{StatefulWidget}, který umožňuje aktualizaci rozhraní pomocí \texttt{setState()} metody.\\
+	State management je řešen pomocí lokálního stavu v každém widgetu pomocí \texttt{State} třídy. Pro sdílení stavu mezi widgety je použito \texttt{ValueNotifier} a \texttt{ValueListenableBuilder}, které umožňují reaktivní aktualizace rozhraní při změně hodnot.\\
+	Navigace je implementována pomocí \texttt{Navigator} API, které poskytuje metody pro přechody mezi obrazovkami. Pro spodní navigační lištu je použito \texttt{BottomNavigationBar} widgetu, který automaticky spravuje stav aktivní sekce.\\
+	Formuláře jsou implementovány pomocí \texttt{Form} widgetu s \texttt{GlobalKey<FormState>} pro validaci. Každé vstupní pole je \texttt{TextFormField} s vlastním \texttt{TextEditingController} a validátorem. Validace probíhá při odeslání formuláře pomocí \texttt{formKey.currentState?.validate()}.
+	
+	\section{Validace vstupů}
+	Validace vstupů je implementována na několika úrovních. První úroveň je validace na úrovni formulářů pomocí \texttt{validator} funkce v \texttt{TextFormField}. Tato validace kontroluje formát emailu, délku hesla a další základní požadavky.\\
+	Druhá úroveň validace probíhá na úrovni obchodní logiky před zpracováním dat. Například při vytvoření sázky se validuje, zda uživatel má dostatečný zůstatek, zda zápas ještě nezačal a zda je zadaná částka kladné číslo.\\
+	Pro zobrazení chybových zpráv je použito pole \texttt{errorText} v \texttt{InputDecoration}, které zobrazuje chybovou zprávu přímo pod vstupním polem. Pro komplexnější validaci, například v betting dialogu, jsou chyby ukládány do mapy s klíčem odpovídajícím konkrétnímu poli nebo kategorii.
+	
+	\newpage
+	\section{Implementace sázkového systému}
+	Sázkový systém je založen na modelech Bet a MatchOdds, které reprezentují sázku a kurzy zápasu. Při vytvoření sázky uživatel vybere výsledek zápasu a částku, kterou chce vsadit. Systém automaticky vypočítá potenciální výhru na základě kurzu.
+	Automatické vyhodnocení sázek probíhá po skončení zápasu, kdy systém porovná výsledek zápasu s předpovědí uživatele. Při úspěšné sázce se výhra přičte k zůstatku uživatele. Celý proces je automatizován pomocí AutoUpdateService, který pravidelně kontroluje výsledky zápasů.
+	
+	\subsection{Proces vytvoření sázky}
+	Při vytvoření sázky uživatel vybere výsledek zápasu a částku, kterou chce vsadit. Systém automaticky vypočítá potenciální výhru na základě kurzu. Validace zajišťuje, že uživatel má dostatečný zůstatek a že zápas ještě nezačal.\\
+	Výpočet potenciální výhry probíhá pomocí metody \texttt{\_calculatePotentialWin()}, která iteruje přes všechny vybrané sázky, násobí zadanou částku kurzem a sčítá výsledky. Tento výpočet se automaticky aktualizuje při každé změně vstupu díky listenerům na \texttt{TextEditingController}.
+	
+	\subsection{Automatické vyhodnocení sázek}
+	Automatické vyhodnocení sázek je realizováno pomocí AutoUpdateService, který pravidelně kontroluje výsledky zápasů. Služba načítá zápasy z Firestore a porovnává stav zápasu s předpovědí uživatele.\\ \\
+	Pro každou sázku se načte odpovídající zápas z databáze a ověří se, zda zápas již skončil a zda výsledek odpovídá předpovědi. Pokud je sázka úspěšná, vypočítá se výhra vynásobením vsazené částky kurzem a přičte se k zůstatku uživatele. Stav sázky se aktualizuje na "vyhodnoceno" a "úspěšná" nebo "neúspěšná".\\ \\
+	Tento proces probíhá automaticky na pozadí pomocí \texttt{Timer.periodic()}, který spouští aktualizaci v pravidelných intervalech. Pro optimalizaci výkonu jsou kontrolovány pouze zápasy, které ještě nebyly vyhodnoceny a které již skončily.
+	
+	\begin{figure}[h]
+		\centering
+		
+		\includegraphics[width=0.5\linewidth]{image/sazka.png}
+		\caption{sázení}
+	\end{figure}
+	
+	\chapter{Struktura a implementované funkce}
+	
+	\section{Obrazovky aplikace}
+	Aplikace obsahuje několik obrazovek pro různé funkce. Splash Screen zobrazuje logo aplikace při spuštění a zajišťuje inicializaci potřebných služeb. Login a Register obrazovky umožňují uživatelům vytvořit účet nebo se přihlásit pomocí různých metod.
+	Main Screen je centrální obrazovka aplikace, která zobrazuje kalendář zápasů s možností výběru data a seznam zápasů pro vybraný den. Teams Screen umožňuje procházení týmů podle lig a zobrazení detailních informací. Standings Screen zobrazuje aktuální tabulky lig s pořadím týmů a jejich statistikami.
+	
+	\subsection{Registrační obrazovky}
+	Registrační obrazovka obsahuje pole pro email, heslo a potvrzení hesla. Formulář validuje správnost formátu emailu, délku hesla a shodu obou hesel. Po úspěšné registraci je uživatel přesměrován na obrazovku ověření emailu.
+	
+	
+	
+	
+	\subsection{Přihlašovací obrazovka}
+	Přihlašovací obrazovka obsahuje pole pro email a heslo. Uživatelé mohou také použít tlačítko pro přihlášení přes Google. Obrazovka obsahuje také odkaz na reset hesla pro uživatele, kteří zapomněli své přihlašovací údaje.
+	
+	
+	\subsection{Hlavní obrazovka s kalendářem zápasů}
+	Centrální obrazovka aplikace, která zobrazuje kalendář zápasů s možností výběru data a seznam zápasů pro vybraný den. Obrazovka také zobrazuje oblíbené týmy a rychlý přístup k důležitým funkcím.
+	\newpage
+	\subsection{Profilová obrazovka}
+	Profilová obrazovka umožňuje uživatelům spravovat svůj profil včetně přezdívky, profilového obrázku fotbalových týmů a dalších nastavení. Obrazovka také zobrazuje možnost přidání kamarádů.
+	
+	
+	\subsection{Obrazovka nastavení}
+	Tato obrazovka umožňuje uživatelům nahlédnout do své historie sázek, konfigurovat nastavení aplikace včetně notifikací, také obsahuje informace o aplikaci a možnost odeslání zpětné vazby. 
+	
+	
+	
+	\section{Služby a logika aplikace}
+	Aplikace obsahuje několik služeb pro zpracování obchodní logiky. AuthService zajišťuje všechny operace související s autentizací uživatelů. FirestoreService poskytuje metody pro práci s databází včetně čtení a zápisu dat.
+	ApiFootballService komunikuje s externím API pro získávání dat o zápasech. AutoUpdateService automaticky aktualizuje data o zápasech a výsledcích v pravidelných intervalech. SessionManager spravuje uživatelské session a lokální ukládání dat. ThemeService a LocalizationService zajišťují správu vzhledu a textů aplikace.
+	
+	\section{Datové modely}
+	Aplikace používá několik datových modelů pro reprezentaci různých entit. Match model reprezentuje fotbalový zápas s informacemi o týmech, čase konání a výsledku. Bet model reprezentuje sázku uživatele s informacemi o vybraném výsledku, vsazené částce a stavu sázky.
+	Team model obsahuje informace o fotbalovém týmu včetně názvu, ligy, loga a dalších detailů. User model reprezentuje uživatelské údaje včetně emailu, přezdívky, zůstatku a dalších informací. Všechny modely jsou navrženy tak, aby odpovídaly struktuře dat v Firestore databázi.
+	\newpage
+	\section{Funkční prvky}
+	Aplikace obsahuje několik funkčních prvků pro zlepšení uživatelské zkušenosti. Systém oblíbených týmů umožňuje uživatelům označit týmy jako oblíbené a rychle přistupovat k jejich zápasům. Přidávání kamarádů umožňuje vytvářet soukromé žebříčky pro soutěžení s přáteli.
+	Každodenní odměny poskytují uživatelům možnost získat virtuální měnu pro sázení. Historie sázek umožňuje uživatelům zobrazit všechny své předchozí sázky včetně jejich výsledků. Všechny tyto funkce jsou integrovány do uživatelského rozhraní a poskytují plynulou uživatelskou zkušenost.
+	
+	\subsection{Přidání kamarádů}
+	Přidávání kamarádů umožňuje vytvářet soukromé žebříčky pro soutěžení s přáteli. Uživatel může přidat kamaráda pomocí jeho emailové adresy. Systém nejprve ověří, zda uživatel s daným emailem existuje v databázi, a teprve poté umožní přidání.
+	Proces přidání kamaráda začíná kliknutím na tlačítko "Přidat" v Profilové obrazovce. Otevře se dialog, kde uživatel zadá email kamaráda. Po validaci emailu a kontrole existence účtu se kamarád přidá do seznamu přátel. Přidání je oboustranné, takže oba uživatelé vidí jeden druhého ve svých žebříčcích.
+	
+	\subsection{Soukromé žebříčky}
+	Soukromé žebříčky zobrazují pořadí uživatelů a jejich kamarádů podle zůstatku. Tato funkce umožňuje uživatelům soutěžit s přáteli a sledovat jejich pokrok. Žebříček je aktualizován v reálném čase, takže změny zůstatků se okamžitě projeví.
+	Obrazovka s žebříčkem zobrazuje seznam uživatelů seřazených podle jejich zůstatku. Každý uživatel je zobrazen s přezdívkou, zůstatkem a pozicí v žebříčku.
+	\newpage
+	\subsection{Zpětná vazba}
+	Aplikace obsahuje funkci pro odesílání zpětné vazby, která umožňuje uživatelům nahlásit problémy nebo navrhnout vylepšení. Funkce je dostupná v nastavení aplikace, kde uživatel klikne na tlačítko "Zpětná vazba".
+	Dialog zpětné vazby obsahuje výběr typu problému (technický problém, nápad na vylepšení, chyba v datech nebo jiné) a textové pole pro popis problému. Po odeslání se zpětná vazba uloží do Firestore databáze, kde může být později zpracována.
+	
+	\begin{figure}[h]
+		\centering
+		
+		\includegraphics[width=1.0\linewidth]{image/zpetna-vazba.png}
+		\caption{zpětná vazba} 
+	\end{figure}
+	
+	\chapter{Splněné a nesplněné cíle}
+	Cílem bylo vytvořit mobilní aplikaci na sázení fotbalových zápasů, ale pouze za virtuální peníze, a to se mi podařilo. Chtěl jsem, aby byla aplikace dostupná pro všechny nehledě věku a umožnit tak lidem sázet, bez ztráty v reálném životě. Kód samozřejmě není optimální, zbytečně místy moc složitý, ale věřím, že postupem času by se i to mohlo změnit. Naučil jsem se s novými, mně dosud neznámými technologiemi a za to jsem také rád. V budoucnu by mohla aplikace být i veřejně dostupná, ale prozatím to ještě pořád má své mouchy.
+	
+	\chapter*{Závěr}
+	
+	Tato práce představuje vývoj mobilní aplikace Strike! pro virtuální sázení na fotbalové zápasy. Projekt kombinuje Flutter pro frontend a Firebase pro backend, což umožnilo rychlý vývoj a spolehlivé cloudové služby.
+	Aplikace splnila většinu definovaných požadavků. Uživatelé mohou sázet na zápasy z top 5 evropských lig, automaticky se vyhodnocují sázky a jsou dostupné sociální funkce pro soutěžení s přáteli.
+	Vývoj přinesl zkušenosti s multiplatformním vývojem ve Flutteru, integrací cloudových služeb Firebase a prací s externími API. Projekt ukázal výhody moderních technologií pro rychlý vývoj mobilních aplikací s minimálními nároky na vlastní infrastrukturu.
+	Některé původně plánované funkce, jako globální leaderboard a zobrazení novinek, nebyly do finální verze zahrnuty, ale mohou být implementovány v budoucích verzích.
+	
+	%% literatura
+	\begin{thebibliography}{99}
+		
+		\bibitem{firebaseConsole} GOOGLE. \textit{Firebase Console} [online]. Google, 2024 [cit. 2024]. Dostupné z: \url{https://console.firebase.google.com}
+		
+		\bibitem{apiFootball} API-SPORTS. \textit{API-Football Dashboard} [online]. API-Sports.io, 2024 [cit. 2024]. Dostupné z: \url{https://dashboard.api-football.com}
+		
+		\bibitem{cursor} CURSOR. \textit{Cursor - AI Code Editor} [online]. Cursor, 2024 [cit. 2024]. Dostupné z: \url{https://cursor.com}
+		
+		\bibitem{flutter} GOOGLE. \textit{Flutter - Build apps for any screen} [online]. Google, 2024 [cit. 2024]. Dostupné z: \url{https://flutter.dev}
+		
+		\bibitem{flutterTutorial} \textit{Flutter Tutorial for Beginners} [online]. YouTube, 2024 [cit. 2024]. Dostupné z: \url{https://www.youtube.com/watch?v=bZNjqnI2xiM}
+		
+		\bibitem{pixelmate} PIXELMATE. \textit{Pixelmate - Vývoj aplikací na míru} [online]. Pixelmate s.r.o., 2024 [cit. 2024]. Dostupné z: \url{https://pixelmate.cz}
+		
+		\bibitem{w3schoolsAPI} W3SCHOOLS. \textit{Web APIs - Introduction} [online]. W3Schools, 2024 [cit. 2024]. Dostupné z: \url{https://www.w3schools.com/js/js_api_intro.asp}
+		
+		\bibitem{firebaseAuth} GOOGLE. \textit{Firebase Authentication Documentation} [online]. Google, 2024 [cit. 2024]. Dostupné z: \url{https://firebase.google.com/docs/auth}
+		
+		\bibitem{firestore} GOOGLE. \textit{Cloud Firestore Documentation} [online]. Google, 2024 [cit. 2024]. Dostupné z: \url{https://firebase.google.com/docs/firestore}
+		
+		\bibitem{dart} GOOGLE. \textit{Dart Programming Language} [online]. Google, 2024 [cit. 2024]. Dostupné z: \url{https://dart.dev}
+		
+		\bibitem{flutterDocs} GOOGLE. \textit{Flutter Documentation} [online]. Google, 2024 [cit. 2024]. Dostupné z: \url{https://docs.flutter.dev}
+		
+		\bibitem{pubDev} \textit{Pub.dev - Dart Package Repository} [online]. Dart, 2024 [cit. 2024]. Dostupné z: \url{https://pub.dev}
+		
+		\bibitem{cloudFirestore} GOOGLE. \textit{cloud\_firestore Package} [online]. Pub.dev, 2024 [cit. 2024]. Dostupné z: \url{https://pub.dev/packages/cloud_firestore}
+		
+		\bibitem{firebaseAuthPackage} GOOGLE. \textit{firebase\_auth Package} [online]. Pub.dev, 2024 [cit. 2024]. Dostupné z: \url{https://pub.dev/packages/firebase_auth}
+		
+		\bibitem{httpPackage} \textit{http Package} [online]. Pub.dev, 2024 [cit. 2024]. Dostupné z: \url{https://pub.dev/packages/http}
+		
+		\bibitem{sharedPreferences} \textit{shared\_preferences Package} [online]. Pub.dev, 2024 [cit. 2024]. Dostupné z: \url{https://pub.dev/packages/shared_preferences}
+		
+		\bibitem{apiFootballDocs} API-SPORTS. \textit{API-Football Documentation} [online]. API-Sports.io, 2024 [cit. 2024]. Dostupné z: \url{https://www.api-football.com/documentation}
+		
+		 
+	\end{thebibliography}
+	%% obrázky 
+	\listoffigures
+
+\end{document}
